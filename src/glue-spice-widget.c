@@ -58,6 +58,14 @@ static guint signals[SPICE_DISPLAY_LAST_SIGNAL];
 static HWND win32_window = NULL;
 #endif
 
+#if defined(ANDROID)
+#define INVERSE_BUFFER 1
+#elif __APPLE__
+    #include "TargetConditionals.h"
+    #if TARGET_OS_IPHONE
+    #define INVERSE_BUFFER 1
+    #endif    
+#endif
 
 static void disconnect_main(SpiceDisplay *display);
 static void disconnect_display(SpiceDisplay *display);
@@ -992,7 +1000,7 @@ gboolean copy_display_to_glue(SpiceDisplayPrivate *d)
     int maxI = d->height > (invalidate_y + invalidate_h)? d->height - invalidate_y : invalidate_h;
     int maxJ = d->width  > (invalidate_x + invalidate_w)? d->width :(invalidate_x + invalidate_w);
     src2_data += d->width * invalidate_y;
-#if defined(__APPLE__) || defined(ANDROID)
+#if INVERSE_BUFFER
     int tmp = (d->height - invalidate_y - 1) * d->width;
     dst2_data += tmp;
 #else
@@ -1004,7 +1012,7 @@ gboolean copy_display_to_glue(SpiceDisplayPrivate *d)
         for (j = invalidate_x; j < maxJ; j ++) {
             dst2_data[j]=ARGBtoABGR(src2_data[j]);
         }
-#if defined(__APPLE__) || defined(ANDROID)
+#if INVERSE_BUFFER
         dst2_data-= d->width;
 #else
         dst2_data+= d->width;
