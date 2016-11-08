@@ -69,7 +69,7 @@ typedef struct
 
 /* Allocates new memory for current_data, which will need to be freed later*/
 void
-push_clipboard_data (gpointer data, guint size)
+push_clipboard_data (const guchar *data, guint size)
 {
   g_mutex_lock (&data_mutex);
   SPICE_DEBUG("CB: data_mutex locked in push.\n");
@@ -122,7 +122,7 @@ int SpiceGlibGlue_GrabGuestClipboard()
         return 0;
     }
 
-    g_idle_add(grab_guest_display, NULL);
+    g_idle_add(grab_guest_clipboard, NULL);
 
     return 0;
 }
@@ -156,7 +156,7 @@ int SpiceGlibGlue_ReleaseGuestClipboard()
         return 0;
     }
 
-    g_idle_add(release_guest_display, NULL);
+    g_idle_add(release_guest_clipboard, NULL);
 
     return 0;
 }
@@ -302,8 +302,7 @@ void clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
     }
     
     if (type == VD_AGENT_CLIPBOARD_UTF8_TEXT) {
-        push_clipboard_data (conv?(gpointer)conv:data, size + 1);
-        SPICE_DEBUG("CB: clipboard got %s", conv);
+        push_clipboard_data (data, size + 1);
     } else {
         g_warning("CB: Ignoring clipboard of unexpected type %d from guest", type);
     }
@@ -313,7 +312,6 @@ gboolean clipboard_grabByGuest(SpiceMainChannel *main, guint selection,
                                guint32* types, guint32 num_types,
                                gpointer user_data) {
 
-    gboolean sth_grabbed = FALSE;
     gint i;
     
     SPICE_DEBUG("CB: clipboard_grabByGuest(sel %d)", selection);
