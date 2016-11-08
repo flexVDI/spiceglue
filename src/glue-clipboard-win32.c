@@ -20,8 +20,6 @@
 #include "config.h"
 #endif
 
-#ifdef USE_CLIPBOARD
-
 #include <stdio.h>
 #include <string.h>
 
@@ -631,5 +629,3 @@ gboolean SpiceGlibGlue_FinalizeWindowsClipboardEvents() {
 /* 
  * End of code block to receive windows messages. 
  */
-
-#endif

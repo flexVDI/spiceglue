@@ -15,6 +15,21 @@ PKG_CHECK_MODULES([SPICEGLIB], [spice-client-glib-2.0])
 AC_SUBST(SPICEGLIB_CFLAGS)
 AC_SUBST(SPICEGLIB_LIBS)
 
+case "$host_os" in
+     *mingw*|*cygwin*)
+        os_win32=yes
+        os_macos=no
+        ;;
+     *darwin*)
+        os_win32=no
+        os_macos=yes
+        ;;
+     *)
+        os_win32=no
+        os_macos=no
+        ;;
+esac
+
 AC_ARG_ENABLE([printing],
     AS_HELP_STRING([--disable-printing], [Disable flexVDI follow-me printing support]))
  
@@ -46,8 +61,19 @@ AS_IF([test "x$enable_clipboard" != "xno"], [
     AC_DEFINE(USE_CLIPBOARD)
 	enable_clipboard="yes"
 	], )
-AM_CONDITIONAL([WITH_USE_CLIPBOARD], [test "x$enable_clipboard" != "xno"])
 
+WITH_CLIPBOARD_WIN32=0
+WITH_CLIPBOARD_MACOS=0
+if test "x$enable_clipboard" != "xno"; then
+    if test "$os_win32" = "yes"; then
+        WITH_CLIPBOARD_WIN32=1
+    elif test "$os_macos" = "yes"; then
+        WITH_CLIPBOARD_MACOS=1
+    fi
+fi
+
+AM_CONDITIONAL(WITH_CLIPBOARD_WIN32, [test "x$WITH_CLIPBOARD_WIN32" = "x1"])
+AM_CONDITIONAL(WITH_CLIPBOARD_MACOS, [test "x$WITH_CLIPBOARD_MACOS" = "x1"])
 
 AC_OUTPUT
 
