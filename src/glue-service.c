@@ -370,7 +370,8 @@ int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode)
 
 int16_t SpiceGlibGlue_isConnected() {
     //SPICE_DEBUG("isConnected int: %d bool: %d .", connections, (connections > 0));
-    return (connections > 0);
+    //return (connections > 0);
+    return (mainconn != NULL &&mainconn->channels >3); 
 }
 
 int16_t SpiceGlibGlue_getNumberOfChannels() {
