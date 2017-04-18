@@ -88,24 +88,31 @@ void logHandler (const gchar *log_domain, GLogLevelFlags log_level,
 		const gchar *message, gpointer user_data)
 {
     gboolean doLog = FALSE;
+    gboolean isNopoll;
 
     if (logVerbosity == 0 && 
         log_level | G_LOG_LEVEL_ERROR
     ) {
         doLog = TRUE;
-    }    
-    if (logVerbosity <= 1 && 
-        (log_level | G_LOG_LEVEL_CRITICAL 
-        || log_level | G_LOG_LEVEL_WARNING)
+    }
+    isNopoll = (log_domain && strcmp("nopoll", log_domain) == 0);
+    if (logVerbosity <= 1
+        && (log_level | G_LOG_LEVEL_CRITICAL 
+            || log_level | G_LOG_LEVEL_WARNING)
+        && !isNopoll
     ) {
         doLog = TRUE;
     }    
-    if (logVerbosity <= 2 && 
-        log_level | G_LOG_LEVEL_MESSAGE
+    if (logVerbosity <= 2 
+        && log_level | G_LOG_LEVEL_MESSAGE 
+        && !isNopoll
     ) {
         doLog = TRUE;
     }    
-    if (logVerbosity == 3) {
+    if (logVerbosity == 3 && log_domain && !isNopoll ) {
+        doLog = TRUE;
+    }
+    if (logVerbosity == 4 && log_domain) {
         doLog = TRUE;
     }
 
