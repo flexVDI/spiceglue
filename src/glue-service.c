@@ -45,7 +45,14 @@
 #endif
 
 static FILE *logfile = NULL;
+static int32_t logVerbosity;
 
+#ifdef ANDROID
+void androidLog (const gchar *log_domain, GLogLevelFlags log_level,
+		 const gchar *message, gpointer user_data) {
+    __android_log_print(ANDROID_LOG_ERROR, "spice-glue", "%s", message);
+}
+#else
 void logToFile (const gchar *log_domain, GLogLevelFlags log_level,
 		const gchar *message, gpointer user_data)
 {
@@ -75,70 +82,51 @@ void logToFile (const gchar *log_domain, GLogLevelFlags log_level,
     g_free(dateTimeStr);
     fflush(logfile);
 }
-
-void nullLog (const gchar *log_domain, GLogLevelFlags log_level,
-	      const gchar *message, gpointer user_data)
-{
-}
-
-#ifdef ANDROID
-void androidLog (const gchar *log_domain, GLogLevelFlags log_level,
-		 const gchar *message, gpointer user_data) {
-    __android_log_print(ANDROID_LOG_ERROR, "spice-glue", "%s", message);
-}
 #endif
 
+void logHandler (const gchar *log_domain, GLogLevelFlags log_level,
+		const gchar *message, gpointer user_data)
+{
+    gboolean doLog = FALSE;
+
+    if (logVerbosity == 0 && 
+        log_level | G_LOG_LEVEL_ERROR
+    ) {
+        doLog = TRUE;
+    }    
+    if (logVerbosity <= 1 && 
+        (log_level | G_LOG_LEVEL_CRITICAL 
+        || log_level | G_LOG_LEVEL_WARNING)
+    ) {
+        doLog = TRUE;
+    }    
+    if (logVerbosity <= 2 && 
+        log_level | G_LOG_LEVEL_MESSAGE
+    ) {
+        doLog = TRUE;
+    }    
+    if (logVerbosity == 3) {
+        doLog = TRUE;
+    }
+
+    if (doLog) {
+#ifdef ANDROID
+        androidLog(log_domain, log_level, message, user_data);
+#else
+        logToFile(log_domain, log_level, message, user_data);
+#endif
+    }
+}
 
 void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel)
 {
     SPICE_DEBUG("SpiceGlibGlue_InitializeLogging() ini");
+    logVerbosity = verbosityLevel;
 
-    GLogLevelFlags logFlags = G_LOG_LEVEL_MASK;
-
-    switch (verbosityLevel) {
-    case 0:
-    logFlags = G_LOG_LEVEL_ERROR;
-	break;
-    case 1:
-	logFlags = G_LOG_LEVEL_ERROR 
-      | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING;
-	break;
-    case 2:
-        logFlags = G_LOG_LEVEL_ERROR 
-          | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE;
-    break;
-    case 3:
-        logFlags = G_LOG_LEVEL_MASK; /* all levels*/
+    if (verbosityLevel >= 3) {
         spice_util_set_debug(TRUE);
     }
-    logFlags |=  (G_LOG_FLAG_FATAL| G_LOG_FLAG_RECURSION);
-
-    /* 
-     * Cancel out defaul log to stderr, and stdout.
-     * Otherwise our custom logger AND default logger will log.
-     * Only installing logToFile does NOT nullify default log.
-     */
-    g_log_set_default_handler (nullLog, NULL);
-
-#ifdef ANDROID
-    // glue library (SPICE_DEBUG)
-    g_log_set_handler ("SpiceGlue",  logFlags, androidLog, NULL);
-    // Some logs with "" domain in sources as glue-spicy.c
-    g_log_set_handler ("",  logFlags, androidLog, NULL);
-    // libspiceClient Logs (SPICE_DEBUG)
-    g_log_set_handler ("GSpice",  logFlags, androidLog, NULL);
-    // flexvdi library logging. Follow Me Printing, etc
-    g_log_set_handler ("flexvdi",  logFlags, androidLog, NULL);
-#else
-    // glue library (SPICE_DEBUG)
-    g_log_set_handler ("SpiceGlue",  logFlags, logToFile, NULL);
-    // Some logs with "" domain in sources as glue-spicy.c
-    g_log_set_handler ("",  logFlags, logToFile, NULL);
-    // libspiceClient Logs (SPICE_DEBUG)
-    g_log_set_handler ("GSpice",  logFlags, logToFile, NULL);
-    // flexvdi library logging. Follow Me Printing, etc
-    g_log_set_handler ("flexvdi",  logFlags, logToFile, NULL);
-#endif
+    g_log_set_default_handler (logHandler, NULL);
 
     SPICE_DEBUG("Logging initialized.");
 }
