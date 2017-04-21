@@ -562,11 +562,18 @@ void OnRenderFormat(UINT wparam) {
 }                              
 
 void OnRenderAllFormats(HWND hwnd) {
+
+    SPICE_DEBUG("CB: OnRenderAllFormats()");
+    if (!enableClipboardToClient) {
+        SPICE_DEBUG("CB: enableClipboardToClient set to false. Doing nothing.");
+        return;
+    }
     if (OpenClipboard(hwnd)) {
         OnRenderFormat(CF_UNICODETEXT);
         CloseClipboard();
     }
 }
+
 static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
 
