@@ -105,26 +105,26 @@ void logHandler (const gchar *log_domain, GLogLevelFlags log_level,
     gboolean doLog = FALSE;
     gboolean isNopoll;
 
-    if (logVerbosity == 0 && 
-        log_level | G_LOG_LEVEL_ERROR
+    if (logVerbosity >= 0 && 
+        log_level & G_LOG_LEVEL_ERROR
     ) {
         doLog = TRUE;
     }
     isNopoll = (log_domain && strcmp("nopoll", log_domain) == 0);
-    if (logVerbosity <= 1
-        && (log_level | G_LOG_LEVEL_CRITICAL 
-            || log_level | G_LOG_LEVEL_WARNING)
+    if (logVerbosity >= 1
+        && (log_level & G_LOG_LEVEL_CRITICAL 
+            || log_level & G_LOG_LEVEL_WARNING)
         && !isNopoll
     ) {
         doLog = TRUE;
     }    
-    if (logVerbosity <= 2 
-        && log_level | G_LOG_LEVEL_MESSAGE 
+    if (logVerbosity >= 2 
+        && log_level & G_LOG_LEVEL_MESSAGE 
         && !isNopoll
     ) {
         doLog = TRUE;
     }    
-    if (logVerbosity == 3 && !isNopoll ) {
+    if (logVerbosity >= 3 && !isNopoll ) {
         doLog = TRUE;
     }
     if (logVerbosity == 4) {
@@ -149,7 +149,6 @@ void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel)
         spice_util_set_debug(TRUE);
     }
     g_log_set_default_handler (logHandler, NULL);
-
     SPICE_DEBUG("Logging initialized.");
 }
 
