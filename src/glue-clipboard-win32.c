@@ -68,6 +68,12 @@ gboolean isClipboardGrabbed = FALSE;
 
 const int max_clipboard = 512*1024;
 
+ /* Flag to know if guest owns the clipboard, and we should ask vdagent for data
+  * or not. We don't need to distinguish if clipboard is owned by some other 
+  * program in client machine or by nobody, so we don't store that information.
+ */
+gboolean guestOwnsClipboard = FALSE; 
+
 /* Values for comunication beween signal receiving thread 
  * and windows message receiving thread 
  */
@@ -323,6 +329,7 @@ void clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
     gchar *conv = NULL;
     if (type == VD_AGENT_CLIPBOARD_NONE) {
         SPICE_DEBUG("CB: No data. Received type VD_AGENT_CLIPBOARD_NONE : size %d", size);
+        push_clipboard_data (NULL);
         return;
     }
     
@@ -388,6 +395,7 @@ gboolean clipboard_grabByGuest(SpiceMainChannel *main, guint selection,
                 return false;
             }
             sth_grabbed= TRUE;
+            guestOwnsClipboard = TRUE;
             EmptyClipboard();
             SetClipboardData(CF_UNICODETEXT, NULL);
             SPICE_DEBUG("CB: ClipboardData Set to null WM_RENDERFORMAT should come");
@@ -398,6 +406,34 @@ gboolean clipboard_grabByGuest(SpiceMainChannel *main, guint selection,
     } else {
         SPICE_DEBUG("CB: Guest only requested unsupported types of clipboard. Not setting.");
     }
+    
+    return TRUE;
+}
+
+
+gboolean clipboard_releaseByGuest(SpiceMainChannel *main, guint selection,
+                               guint32* types, guint32 num_types,
+                               gpointer user_data) {
+
+    gboolean sth_grabbed = FALSE;
+    gint i;
+    
+    SPICE_DEBUG("CB: clipboard_releaseByGuest(sel %d)", selection);
+    if (!enableClipboardToClient) {
+        SPICE_DEBUG("CB: enablelClipboardToClient set to false. Doing nothing.");
+        return TRUE;
+    }
+    
+    if (selection != VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD) {
+        g_warning("CB: discarded clipboard request of unsupported selection %d",selection);
+        return FALSE;    
+    }
+
+    if (!guestOwnsClipboard) {
+        SPICE_DEBUG("CB: guest already does not own clipboard. Doing nothing.");
+        return TRUE;
+    }
+    guestOwnsClipboard = FALSE;
     
     return TRUE;
 }
@@ -479,6 +515,11 @@ void OnRenderFormat(UINT wparam) {
         return;
     }
 
+    if (!guestOwnsClipboard) {
+        SPICE_DEBUG("CB: Guest does NOT own clipboard. Not setting client clipboard data.");
+        return;
+    }
+
     if (wparam == CF_UNICODETEXT) {
         g_timeout_add_full(G_PRIORITY_HIGH, 0,
                onRenderFormat_text,
@@ -544,6 +585,7 @@ static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
             SPICE_DEBUG("CB WM_CLIPBOARDUPDATE.");
             if ( GetClipboardOwner() != hwnd) {
                 SPICE_DEBUG("CB Another application grabbed the client clipboard. Grabbing guest cb.");
+                guestOwnsClipboard = FALSE;
                 SpiceGlibGlue_GrabGuestClipboard();
             }
             break;

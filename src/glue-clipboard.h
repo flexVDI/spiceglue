@@ -37,6 +37,10 @@ gboolean clipboard_grabByGuest(SpiceMainChannel *main, guint selection,
                                guint32* types, guint32 ntypes,
                                gpointer user_data);
 
+gboolean clipboard_releaseByGuest(SpiceMainChannel *main, guint selection,
+                               guint32* types, guint32 num_types,
+                               gpointer user_data);
+
 void clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
                                      guint type, const guchar *data, guint size,
                                      gpointer user_data);

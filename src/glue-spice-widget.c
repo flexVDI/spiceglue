@@ -1399,7 +1399,10 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
                      
         g_signal_connect(channel, "main-clipboard-selection-grab",
                      G_CALLBACK(clipboard_grabByGuest), /*self*/ NULL);
-                     
+
+        g_signal_connect(channel, "main-clipboard-selection-release",
+                         G_CALLBACK(clipboard_releaseByGuest), /*self*/ NULL);
+                         
         /*clipboard_handler =*/
         g_signal_connect(channel, "main-clipboard-selection",
                     G_CALLBACK(clipboard_got_from_guest),
