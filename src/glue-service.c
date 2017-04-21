@@ -419,8 +419,8 @@ static gboolean sendPowerEvent1(int16_t powerEvent)
  **/
 void SpiceGlibGlue_SendPowerEvent(int16_t powerEvent) {
     g_timeout_add_full(G_PRIORITY_HIGH, 0,
-                       sendPowerEvent1,
-                       powerEvent, NULL);
+                       (GSourceFunc)sendPowerEvent1,
+                       (gpointer)powerEvent, NULL);
 }
 
 

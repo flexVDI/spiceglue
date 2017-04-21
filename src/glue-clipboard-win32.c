@@ -91,7 +91,7 @@ typedef struct
 
 /* Allocates new memory for current_data, which will need to be freed later*/
 void
-push_clipboard_data (gpointer data) {
+push_clipboard_data (const gpointer data) {
 
   g_mutex_lock (&data_mutex);
   SPICE_DEBUG("CB: data_mutex locked in push.\n");
@@ -356,7 +356,7 @@ void clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
             conv[size] = 0;
         }
 #endif
-        push_clipboard_data (conv?(gpointer)conv:data);
+        push_clipboard_data (conv?(const gpointer)conv:(const gpointer)data);
         SPICE_DEBUG("CB: clipboard got %s", conv);
         g_free(conv);
     } else {
@@ -415,9 +415,6 @@ gboolean clipboard_releaseByGuest(SpiceMainChannel *main, guint selection,
                                guint32* types, guint32 num_types,
                                gpointer user_data) {
 
-    gboolean sth_grabbed = FALSE;
-    gint i;
-    
     SPICE_DEBUG("CB: clipboard_releaseByGuest(sel %d)", selection);
     if (!enableClipboardToClient) {
         SPICE_DEBUG("CB: enablelClipboardToClient set to false. Doing nothing.");
@@ -456,7 +453,7 @@ static gboolean recv_windows_message (GIOChannel  *channel,
   SPICE_DEBUG("CB: recv_windows_message()");
   while (1)
     {
-      error = g_io_channel_read (channel, &msg, sizeof (MSG), &nb);
+      error = g_io_channel_read (channel, (gchar *)&msg, sizeof (MSG), &nb);
       
       if (error != G_IO_ERROR_NONE)
    	  {

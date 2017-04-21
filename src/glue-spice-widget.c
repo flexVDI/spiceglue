@@ -199,7 +199,7 @@ static void spice_display_init(SpiceDisplay *display)
 
 static void set_mouse_accel(SpiceDisplay *display, gboolean enabled)
 {
-    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
+    //SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
 
 #if defined GDK_WINDOWING_X11
     GdkWindow *w = GDK_WINDOW(gtk_widget_get_window(GTK_WIDGET(display)));
@@ -1043,7 +1043,7 @@ static void invalidate(SpiceChannel *channel,
 {
     SpiceDisplay *display = SPICE_DISPLAY(data);
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display);
-    char *cdata = (char *)d->data;
+    //char *cdata = (char *)d->data;
     
     if (invalidated == TRUE) {
         /*SPICE_DEBUG("*** 0000 PRE inval x: %d, w: %d, y: %d, h: %d",
@@ -1402,7 +1402,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 
         g_signal_connect(channel, "main-clipboard-selection-release",
                          G_CALLBACK(clipboard_releaseByGuest), /*self*/ NULL);
-                         
+
         /*clipboard_handler =*/
         g_signal_connect(channel, "main-clipboard-selection",
                     G_CALLBACK(clipboard_got_from_guest),
