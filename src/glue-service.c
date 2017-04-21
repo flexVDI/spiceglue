@@ -109,10 +109,10 @@ void logHandler (const gchar *log_domain, GLogLevelFlags log_level,
     ) {
         doLog = TRUE;
     }    
-    if (logVerbosity == 3 && log_domain && !isNopoll ) {
+    if (logVerbosity == 3 && !isNopoll ) {
         doLog = TRUE;
     }
-    if (logVerbosity == 4 && log_domain) {
+    if (logVerbosity == 4) {
         doLog = TRUE;
     }
 
