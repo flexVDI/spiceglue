@@ -1303,7 +1303,7 @@ int16_t SpiceGlibGlueGetCursor(uint32_t previousCursorId,
 
     STATIC_MUTEX_LOCK(d->cursor_lock);
 
-    if (previousCursorId!=d->idCursor) {
+    if (*showInClient && previousCursorId!=d->idCursor) {
         SPICE_DEBUG("%s : Changing cursor ", __FUNCTION__);
         MonoGlueCursor* mgc = d->mouse_cursor;
         if (mgc) {
