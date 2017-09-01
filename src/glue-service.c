@@ -226,15 +226,6 @@ extern volatile gint invalidate_w;
 extern volatile gint invalidate_h;
 extern volatile int copy_scheduled;
 
-typedef unsigned int Color32;
-static inline Color32 ARGBtoABGR(Color32 x)
-{
-    return 0xFF000000 |              // ______AA
-        ((x & 0x00FF0000) >> 16) |   // ____RR__
-        (x & 0x0000FF00) |           // __GG____
-        ((x & 0x000000FF) <<  16 );  // BB______
-}
-
 uint32_t *glue_display_buffer = NULL; 
 gboolean updatedDisplayBuffer = FALSE;
 
