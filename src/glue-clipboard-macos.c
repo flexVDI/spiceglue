@@ -338,6 +338,14 @@ gboolean clipboard_grabByGuest(SpiceMainChannel *main, guint selection,
     return TRUE;
 }
 
+gboolean clipboard_releaseByGuest(SpiceMainChannel *main, guint selection,
+    guint32* types, guint32 num_types,
+    gpointer user_data) {
+
+    SPICE_DEBUG("CB: clipboard_releaseByGuest(sel %d) not implemented in this platform", selection);
+
+}
+
 gboolean SpiceGlibGlue_InitClipboard(
         int16_t enableClipboardToGuestP, int16_t enableClipboardToClientP,
         uint32_t *guestClipboardP, uint32_t *hostClipboardP)
