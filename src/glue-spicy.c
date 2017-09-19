@@ -236,6 +236,8 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 
         g_signal_connect(channel, "channel-event",
                          G_CALLBACK(generic_channel_event), conn);
+        
+        spice_channel_connect(channel);
     }
 
     if (SPICE_IS_INPUTS_CHANNEL(channel)) {
