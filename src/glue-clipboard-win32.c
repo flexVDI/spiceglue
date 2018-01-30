@@ -283,16 +283,8 @@ gboolean clipboard_requestFromGuest(SpiceMainChannel *main, guint selection,
        But it is our (client program) responsability to give the guest the format it wants.
     */
     if (!spice_main_agent_test_capability(d->main, VD_AGENT_CAP_GUEST_LINEEND_CRLF)) {
-        GError *err = NULL;
-        
         len = strlen(data);
-        conv = spice_dos2unix((gchar*)data, len, &err);
-        if (err) {
-            g_warning("Failed to convert text line ending: %s", err->message);
-            g_clear_error(&err);
-            goto onError;
-        }
-
+        conv = spice_dos2unix((gchar*)data, len);
         len = strlen(conv);
     } else {
         len = strlen((const char *)data);
@@ -340,14 +332,7 @@ void clipboard_got_from_guest(SpiceMainChannel *main, guint selection,
         
         if (!spice_main_agent_test_capability(main, VD_AGENT_CAP_GUEST_LINEEND_CRLF)) {
             SPICE_DEBUG("CB: Change Line ending");
-            GError *err = NULL;
-
-            conv = spice_unix2dos((gchar*)data, size, &err);
-            if (err) {
-                g_warning("Failed to convert text line ending: %s", err->message);
-                g_clear_error(&err);
-                goto end;
-            }
+            conv = spice_unix2dos((gchar*)data, size);
             //size = strlen(conv);
         } else {
             SPICE_DEBUG("CB: Set null terminator");

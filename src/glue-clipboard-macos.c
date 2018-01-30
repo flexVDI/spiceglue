@@ -260,18 +260,9 @@ gboolean clipboard_requestFromGuest(SpiceMainChannel *main, guint selection,
     */
     if (spice_main_agent_test_capability(d->main, VD_AGENT_CAP_GUEST_LINEEND_CRLF)) {
         SPICE_DEBUG("CB: Host to Guest, changing line ending\n");
-        GError *err = NULL;
-        
         len = strnlen(data, CB_SIZE);
-        conv = spice_unix2dos((gchar*)data, len, &err); 
-        if (err) {
-            SPICE_DEBUG("CB: Failed to conver text line ending: %s\n", err->message);
-            g_warning("Failed to convert text line ending: %s", err->message);
-            g_clear_error(&err);
-            goto onError;
-        }
+        conv = spice_unix2dos((gchar*)data, len);
         SPICE_DEBUG("CB: Host to Guest, changing line ending: OK\n");
-
         len = strnlen(conv, CB_SIZE);
     } else {
         len = strnlen((const char *)data, CB_SIZE);
