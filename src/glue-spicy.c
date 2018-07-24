@@ -363,8 +363,6 @@ static void connection_destroy(spice_connection *conn)
     if (connections > 0) {
         return;
     }
-
-    g_main_loop_quit(mainloop);
 }
 
 /* Saver config parameters to session Object*/
