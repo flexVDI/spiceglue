@@ -274,16 +274,8 @@ void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
     glue_width = width;
     glue_height = height;
 
-    if (!copy_scheduled) {
-        SpiceDisplayPrivate *d;
-
-        if (global_display == NULL) {
-            return;
-        }
-
-        d = SPICE_DISPLAY_GET_PRIVATE(global_display);
-
-        g_idle_add((GSourceFunc) copy_display_to_glue, (gpointer) d);
+    if (!copy_scheduled && global_display != NULL) {
+        g_timeout_add(30, (GSourceFunc) copy_display_to_glue, NULL);
         copy_scheduled = 1;
     }
 }

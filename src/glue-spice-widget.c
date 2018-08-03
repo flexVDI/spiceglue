@@ -64,7 +64,7 @@ static HWND win32_window = NULL;
     #include "TargetConditionals.h"
     #if TARGET_OS_IPHONE
     #define INVERSE_BUFFER 1
-    #endif    
+    #endif
 #endif
 
 static void disconnect_main(SpiceDisplay *display);
@@ -179,11 +179,11 @@ static void spice_display_class_init(SpiceDisplayClass *klass)
 
 static void spice_display_init(SpiceDisplay *display)
 {
-    SPICE_DEBUG("%s", __FUNCTION__);
     global_display = display;
     SpiceDisplayPrivate *d;
 
     d = display->priv = SPICE_DISPLAY_GET_PRIVATE(display);
+    SPICE_DEBUG("%s: setting global_display to %p, private to %p", __FUNCTION__, global_display, d);
     memset(d, 0, sizeof(*d));
     d->have_mitshm = true;
     d->mouse_last_x = -1;
@@ -308,9 +308,9 @@ static gboolean do_pointer_grab(SpiceDisplay *display)
 
     SPICE_DEBUG("%s FIXME pointer No hago try_keyboard_grab(display);", __FUNCTION__);
     SPICE_DEBUG("%s FIXME pointer falta gdk_pointer_grab();", __FUNCTION__);
-    
+
     status = 0;
-    
+
     if (status != 0/*GDK_GRAB_SUCCESS*/) {
         d->mouse_grab_active = false;
         g_warning("pointer grab failed %d", status);
@@ -660,7 +660,7 @@ int16_t SpiceGlibGlueButtonEvent(int32_t eventX, int32_t eventY,
         return true;
 
     spicex_transform_input (display, eventX, eventY, &x, &y);
-    
+
     //gtk_widget_grab_focus(widget);
     if (d->mouse_mode == SPICE_MOUSE_MODE_SERVER) {
         if (!d->mouse_grab_active) {
@@ -956,28 +956,26 @@ typedef unsigned int Color32;
 
 static inline Color32 ARGBtoABGR(Color32 x)
 {
-    return (( 0xFF000000) ) | 
-    ((x & 0x00FF0000) >> 16) | 
-    ((x & 0x0000FF00) ) | 
+    return (( 0xFF000000) ) |
+    ((x & 0x00FF0000) >> 16) |
+    ((x & 0x0000FF00) ) |
     ((x & 0x000000FF) <<  16 );
 }
 
 gint64 last_copy_timestamp = 0;
 volatile int copy_scheduled = 0;
 
-gboolean copy_display_to_glue(SpiceDisplayPrivate *d)
+gboolean copy_display_to_glue()
 {
-    gint64 now_timestamp = g_get_monotonic_time();
-    gint64 delta = (now_timestamp - last_copy_timestamp);
-
-    /* Limit copy_display_to_glue to 1000/30 == 33hz */
-    if (delta < 30000) {
-        // SPICE_DEBUG("omitting early copy");
-        return TRUE;
+    if (global_display == NULL) {
+        SPICE_DEBUG("There is no display to copy from");
+        return FALSE;
     }
 
+    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display);
+
     if (d->data == NULL || d->width == 0 || d->height == 0) {
-        SPICE_DEBUG("local display is not available");
+        SPICE_DEBUG("local display is not available: display_priv %p, data %p, %dx%d", d, d->data, d->width, d->height);
         return TRUE;
     }
 
@@ -1022,7 +1020,6 @@ gboolean copy_display_to_glue(SpiceDisplayPrivate *d)
         src2_data += d->width;
     }
 
-    last_copy_timestamp= now_timestamp;
     copy_scheduled = 0;
     invalidated = FALSE;
     updatedDisplayBuffer = TRUE;
@@ -1044,7 +1041,7 @@ static void invalidate(SpiceChannel *channel,
     SpiceDisplay *display = SPICE_DISPLAY(data);
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display);
     //char *cdata = (char *)d->data;
-    
+
     if (invalidated == TRUE) {
         /*SPICE_DEBUG("*** 0000 PRE inval x: %d, w: %d, y: %d, h: %d",
           invalidate_x, invalidate_w, invalidate_y, invalidate_h );
@@ -1088,7 +1085,7 @@ static void invalidate(SpiceChannel *channel,
     }
 
     if (!copy_scheduled) {
-        g_idle_add((GSourceFunc) copy_display_to_glue, (gpointer) d);
+        g_timeout_add(30, (GSourceFunc) copy_display_to_glue, NULL);
         copy_scheduled = 1;
     }
 }
@@ -1392,11 +1389,11 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
         if (d->display) {
             spice_main_set_display_enabled(d->main, get_display_id(display), TRUE);
         }
-        
+
 #ifdef USE_CLIPBOARD
         g_signal_connect(channel, "main-clipboard-selection-request",
                      G_CALLBACK(clipboard_requestFromGuest), /*self*/ NULL);
-                     
+
         g_signal_connect(channel, "main-clipboard-selection-grab",
                      G_CALLBACK(clipboard_grabByGuest), /*self*/ NULL);
 
@@ -1407,8 +1404,8 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
         g_signal_connect(channel, "main-clipboard-selection",
                     G_CALLBACK(clipboard_got_from_guest),
                     /*&ri*/NULL);
-                     
-#endif             
+
+#endif
         return;
     }
 
@@ -1638,4 +1635,3 @@ static void sync_keyboard_lock_modifiers(SpiceDisplay *display)
     g_warning("sync_keyboard_lock_modifiers not implemented");
 }
 #endif // HAVE_X11_XKBLIB_H
-

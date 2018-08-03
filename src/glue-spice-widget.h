@@ -72,7 +72,7 @@ void spice_display_send_keys(SpiceDisplay *display, const guint *keyvals,
 			     int nkeyvals, SpiceDisplayKeyEvent kind);
 void send_key(SpiceDisplay *display, int scancode, int down);
 
-gboolean copy_display_to_glue(SpiceDisplayPrivate *d);
+gboolean copy_display_to_glue();
 
 G_END_DECLS
 
