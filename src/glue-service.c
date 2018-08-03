@@ -50,7 +50,21 @@ static int32_t logVerbosity;
 #ifdef ANDROID
 void androidLog (const gchar *log_domain, GLogLevelFlags log_level,
 		 const gchar *message, gpointer user_data) {
-    __android_log_print(ANDROID_LOG_ERROR, "spice-glue", "%s", message);
+    android_LogPriority p = ANDROID_LOG_SILENT;
+    if (log_level & G_LOG_LEVEL_ERROR) {
+        p = ANDROID_LOG_ERROR;
+    } else if (log_level & G_LOG_LEVEL_CRITICAL) {
+        p = ANDROID_LOG_ERROR;
+    } else if (log_level & G_LOG_LEVEL_WARNING) {
+        p = ANDROID_LOG_WARN;
+    } else if (log_level & G_LOG_LEVEL_MESSAGE) {
+        p = ANDROID_LOG_INFO;
+    } else if (log_level & G_LOG_LEVEL_INFO) {
+        p = ANDROID_LOG_INFO;
+    } else if (log_level & G_LOG_LEVEL_DEBUG) {
+        p = ANDROID_LOG_DEBUG;
+    }
+    __android_log_print(p, "spice-glue", "%s", message);
 }
 #else
 void logToFile (const gchar *log_domain, GLogLevelFlags log_level,
@@ -58,18 +72,18 @@ void logToFile (const gchar *log_domain, GLogLevelFlags log_level,
 {
     GDateTime *now;
     gchar *dateTimeStr;
-    
+
     if (logfile == NULL) {
-	const gchar *basePath = g_getenv("FLEXVDICLIENT_LOGDIR");
-	gchar path[4096];
+        const gchar *basePath = g_getenv("FLEXVDICLIENT_LOGDIR");
+        gchar path[4096];
 
-	sprintf(path, "%sflexVDIClient-lib.log", basePath);
-	logfile = fopen (path, "a");
+        sprintf(path, "%sflexVDIClient-lib.log", basePath);
+        logfile = fopen (path, "a");
 
-	if (logfile == NULL) {
-	    fprintf (stderr, "Rerouted to console: %s\n", message);
-	    return;
-	}
+        if (logfile == NULL) {
+            fprintf (stderr, "Rerouted to console: %s\n", message);
+            return;
+        }
     }
     char* levelStr = "UNKNOWN";
     if (log_level & G_LOG_LEVEL_ERROR) {
@@ -89,7 +103,7 @@ void logToFile (const gchar *log_domain, GLogLevelFlags log_level,
     now = g_date_time_new_now_local();
     dateTimeStr = g_date_time_format(now, "%Y-%m-%d %T");
 
-    fprintf (logfile, "%s,%03d %s %s-%s\n", dateTimeStr, 
+    fprintf (logfile, "%s,%03d %s %s-%s\n", dateTimeStr,
 	     g_date_time_get_microsecond(now) / 1000, levelStr,
          log_domain, message);
 
@@ -105,25 +119,25 @@ void logHandler (const gchar *log_domain, GLogLevelFlags log_level,
     gboolean doLog = FALSE;
     gboolean isNopoll;
 
-    if (logVerbosity >= 0 && 
+    if (logVerbosity >= 0 &&
         log_level & G_LOG_LEVEL_ERROR
     ) {
         doLog = TRUE;
     }
     isNopoll = (log_domain && strcmp("nopoll", log_domain) == 0);
     if (logVerbosity >= 1
-        && (log_level & G_LOG_LEVEL_CRITICAL 
+        && (log_level & G_LOG_LEVEL_CRITICAL
             || log_level & G_LOG_LEVEL_WARNING)
         && !isNopoll
     ) {
         doLog = TRUE;
-    }    
-    if (logVerbosity >= 2 
-        && log_level & G_LOG_LEVEL_MESSAGE 
+    }
+    if (logVerbosity >= 2
+        && log_level & G_LOG_LEVEL_MESSAGE
         && !isNopoll
     ) {
         doLog = TRUE;
-    }    
+    }
     if (logVerbosity >= 3 && !isNopoll ) {
         doLog = TRUE;
     }
