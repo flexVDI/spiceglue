@@ -166,11 +166,14 @@ void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel)
     SPICE_DEBUG("Logging initialized.");
 }
 
-spice_connection *mainconn;
+// Global state
+spice_connection *mainconn = NULL;
+SpiceDisplay *global_display = NULL;
+gboolean soundEnabled = FALSE;
 
 void SpiceGlibGlue_MainLoop(void)
 {
-    mainloop = g_main_loop_new(NULL, false);
+    GMainLoop *mainloop = g_main_loop_new(NULL, false);
     g_main_loop_run(mainloop);
     g_main_loop_unref(mainloop);
 #if defined(PRINTING) || defined(SSO)
@@ -182,7 +185,8 @@ static gboolean disconnect1()
 {
     SPICE_DEBUG("SpiceGlibGlue_Disconnect\n");
     connection_disconnect(mainconn);
-    global_disconnecting = 1;
+    mainconn = NULL;
+    global_display = NULL;
     return FALSE;
 }
 
@@ -200,7 +204,6 @@ int16_t SpiceGlibGlue_Connect(char* host,
 			      int32_t enable_sound)
 {
     int result = 0;
-    global_disconnecting = 0;
     soundEnabled = enable_sound;
 
     SPICE_DEBUG("SpiceClientConnect session_setup");
@@ -221,10 +224,6 @@ int16_t SpiceGlibGlue_Connect(char* host,
     SPICE_DEBUG("SpiceClientConnect connection_connect");
 
     connection_connect(mainconn);
-    if (connections < 0) {
-    	SPICE_DEBUG("Wrong hostname, port, or password.");
-        result = 2;
-    }
 #if defined(USBREDIR)
 	usb_glue_register_session(mainconn->session);
 #endif
@@ -240,7 +239,7 @@ extern volatile gint invalidate_w;
 extern volatile gint invalidate_h;
 extern volatile int copy_scheduled;
 
-uint32_t *glue_display_buffer = NULL; 
+uint32_t *glue_display_buffer = NULL;
 gboolean updatedDisplayBuffer = FALSE;
 
 /* MUTEX to ensure that glue_display_buffer is not freed while it's being written */
@@ -289,10 +288,10 @@ void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
     }
 }
 
-/** 
+/**
  * Params: width, height
- *  IN: 
- *  OUT: 
+ *  IN:
+ *  OUT:
  * Returns true if current buffer has changed and has not been copied, since
  * the last call to SpiceGlibGlueLockDisplayBuffer (not to this function), false otherwise.
  **/
@@ -303,7 +302,7 @@ int16_t SpiceGlibGlueIsDisplayBufferUpdated(int32_t width, int32_t height)
             || (height != local_height);
 }
 
-/** 
+/**
  * Locks the glue_display_buffer, so that we can safely call
  * SpiceGlibGlueSetDisplayBuffer()
  * Params: *width, *height
@@ -357,7 +356,7 @@ int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode)
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
     int scancode;
-    
+
     display = global_display;
     if (global_display == NULL) {
         return -1;
@@ -383,9 +382,7 @@ int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode)
 }
 
 int16_t SpiceGlibGlue_isConnected() {
-    //SPICE_DEBUG("isConnected int: %d bool: %d .", connections, (connections > 0));
-    //return (connections > 0);
-    return (mainconn != NULL &&mainconn->channels >3); 
+    return (mainconn != NULL && mainconn->channels > 3);
 }
 
 int16_t SpiceGlibGlue_getNumberOfChannels() {
@@ -401,7 +398,7 @@ static gboolean sendPowerEvent1(int16_t powerEvent)
 {
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
-    
+
     display = global_display;
     if (global_display == NULL) {
         return -1;
@@ -411,15 +408,15 @@ static gboolean sendPowerEvent1(int16_t powerEvent)
     if (d->data == NULL) {
         return -1;
     }
-    
+
     spice_main_power_event_request(d->main, powerEvent);
 	return FALSE;
 }
 
-/** 
+/**
  * Sends a power event to the machine connected by SPICE.
- * Params: 
- *  IN: powerEvent. One of the values of SpicePowerEvent defined 
+ * Params:
+ *  IN: powerEvent. One of the values of SpicePowerEvent defined
  *     in spice-protocol enums.h
  **/
 void SpiceGlibGlue_SendPowerEvent(int16_t powerEvent) {
@@ -427,5 +424,3 @@ void SpiceGlibGlue_SendPowerEvent(int16_t powerEvent) {
                        (GSourceFunc)sendPowerEvent1,
                        (gpointer)powerEvent, NULL);
 }
-
-

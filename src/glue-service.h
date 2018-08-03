@@ -17,20 +17,5 @@
 
 #include "glue-spice-widget.h"
 
-#define PTRFLAGS_DOWN 0x8000
-
-
-#ifdef GLUE_SERVICE_C
-SpiceDisplay*   global_display = NULL;
-gboolean  global_disconnecting = FALSE;
-GMainLoop            *mainloop = NULL;
-int                connections = 0;
-gboolean          soundEnabled = FALSE;
-#else
-extern SpiceDisplay*   global_display;
-extern gboolean  global_disconnecting;
-extern GMainLoop            *mainloop;
-extern int                connections;
-extern gboolean          soundEnabled;
-#endif
-
+extern SpiceDisplay* global_display;
+extern gboolean      soundEnabled;

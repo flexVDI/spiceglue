@@ -236,7 +236,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 
         g_signal_connect(channel, "channel-event",
                          G_CALLBACK(generic_channel_event), conn);
-        
+
         spice_channel_connect(channel);
     }
 
@@ -330,8 +330,6 @@ spice_connection *connection_new(void)
     g_signal_connect(conn->session, "notify::migration-state",
                      G_CALLBACK(migration_state), conn);
 
-    connections++;
-    SPICE_DEBUG("%s (%d)", __FUNCTION__, connections);
     return conn;
 }
 
@@ -343,26 +341,17 @@ void connection_connect(spice_connection *conn)
 
 void connection_disconnect(spice_connection *conn)
 {
-    if (conn->disconnecting || global_disconnecting)
+    if (conn->disconnecting)
         return;
     conn->disconnecting = true;
     spice_session_disconnect(conn->session);
 }
 
-extern spice_connection *mainconn;
-
 static void connection_destroy(spice_connection *conn)
 {
     SPICE_DEBUG("glue-spicy: connection_destroy()");
-    mainconn = NULL;
     g_object_unref(conn->session);
     free(conn);
-
-    connections--;
-    SPICE_DEBUG("%s (%d)", __FUNCTION__, connections);
-    if (connections > 0) {
-        return;
-    }
 }
 
 /* Saver config parameters to session Object*/
@@ -376,7 +365,7 @@ void spice_session_setup(SpiceSession *session, const char *host,
 
     SPICE_DEBUG("spice_session_setup host=%s, ws_port=%s, port=%s, tls_port=%s", host, ws_port, port, tls_port);
     g_return_if_fail(SPICE_IS_SESSION(session));
-    
+
     if (host)
         g_object_set(session, "host", host, NULL);
     // If we receive "-1" for a port, we assume the port is not set.
