@@ -1038,6 +1038,8 @@ gboolean copy_display_to_glue()
 static void invalidate(SpiceChannel *channel,
                        gint x, gint y, gint w, gint h, gpointer data)
 {
+    if (global_display == NULL) return;
+
     SpiceDisplay *display = SPICE_DISPLAY(data);
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display);
     //char *cdata = (char *)d->data;
@@ -1357,15 +1359,15 @@ static void disconnect_cursor(SpiceDisplay *display)
 
     //cursor_destroy(d->display, display); eh?
 
-    g_signal_handlers_disconnect_by_func(d->display, G_CALLBACK(cursor_set),
+    g_signal_handlers_disconnect_by_func(d->cursor, G_CALLBACK(cursor_set),
                      display);
-    g_signal_handlers_disconnect_by_func(d->display, G_CALLBACK(cursor_move),
+    g_signal_handlers_disconnect_by_func(d->cursor, G_CALLBACK(cursor_move),
                      display);
-    g_signal_handlers_disconnect_by_func(d->display, G_CALLBACK(cursor_hide),
+    g_signal_handlers_disconnect_by_func(d->cursor, G_CALLBACK(cursor_hide),
                      display);
-    g_signal_handlers_disconnect_by_func(d->display, G_CALLBACK(cursor_reset),
+    g_signal_handlers_disconnect_by_func(d->cursor, G_CALLBACK(cursor_reset),
                      display);
-    d->display = NULL;
+    d->cursor = NULL;
 }
 
 
