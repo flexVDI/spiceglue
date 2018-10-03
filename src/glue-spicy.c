@@ -266,7 +266,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 
 static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer data)
 {
-    SPICE_DEBUG( "glue-spicy: channel_destroy called");
+    SPICE_DEBUG("channel_destroy called");
 
     spice_connection *conn = data;
     int id;
@@ -298,9 +298,7 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
 
     conn->channels--;
     if (conn->channels > 0) {
-    	char buf[100];
-        snprintf (buf, 100, "Number of channels: %d", conn->channels);
-    	SPICE_DEBUG("glue-spice: %s", buf);
+        SPICE_DEBUG("Number of channels: %d", conn->channels);
         return;
     }
 
@@ -349,7 +347,7 @@ void connection_disconnect(spice_connection *conn)
 
 static void connection_destroy(spice_connection *conn)
 {
-    SPICE_DEBUG("glue-spicy: connection_destroy()");
+    SPICE_DEBUG("connection_destroy()");
     g_object_unref(conn->session);
     free(conn);
 }
