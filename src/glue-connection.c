@@ -287,3 +287,9 @@ int spice_connection_get_num_channels(SpiceConnection *conn)
 {
     return conn->channels;
 }
+
+void spice_connection_power_event_request(SpiceConnection *conn, int powerEvent)
+{
+    if (conn->main != NULL)
+        spice_main_power_event_request(conn->main, powerEvent);
+}

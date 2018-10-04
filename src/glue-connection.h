@@ -42,5 +42,6 @@ void spice_connection_connect(SpiceConnection *conn);
 void spice_connection_disconnect(SpiceConnection *conn);
 SpiceDisplay *spice_connection_get_display(SpiceConnection *conn);
 int spice_connection_get_num_channels(SpiceConnection *conn);
+void spice_connection_power_event_request(SpiceConnection *conn, int powerEvent);
 
 #endif /* _ANDROID_SPICY_H */

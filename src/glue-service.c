@@ -387,20 +387,8 @@ int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode)
 /* GSourcefunc */
 static gboolean sendPowerEvent1(int16_t powerEvent)
 {
-    SpiceDisplay *display;
-    SpiceDisplayPrivate *d;
-
-    display = global_display();
-    if (global_display() == NULL) {
-        return -1;
-    }
-
-    d = SPICE_DISPLAY_GET_PRIVATE(display);
-    if (d->data == NULL) {
-        return -1;
-    }
-
-    spice_main_power_event_request(d->main, powerEvent);
+    if (mainconn != NULL)
+        spice_connection_power_event_request(mainconn, powerEvent);
 	return FALSE;
 }
 
