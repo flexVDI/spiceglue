@@ -71,6 +71,13 @@ SpiceDisplay* spice_display_new(SpiceSession *session, int id);
 void send_key(SpiceDisplay *display, int scancode, int down);
 
 gboolean copy_display_to_glue();
+void spice_display_set_display_buffer(SpiceDisplay *display, uint32_t *display_buffer,
+				   int32_t width, int32_t height);
+int16_t spice_display_is_display_buffer_updated(SpiceDisplay *display, int32_t width, int32_t height);
+int16_t spice_display_lock_display_buffer(SpiceDisplay *display, int32_t *width, int32_t *height);
+void spice_display_unlock_display_buffer(SpiceDisplay *display);
+int16_t spice_display_get_cursor_position(SpiceDisplay *display, int32_t* x, int32_t* y);
+int32_t spice_display_key_event(SpiceDisplay *display, int16_t isDown, int32_t hardware_keycode);
 
 G_END_DECLS
 

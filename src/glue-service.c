@@ -26,7 +26,6 @@
 #include "glue-service.h"
 
 #include "glue-spice-widget.h"
-#include "glue-spice-widget-priv.h"
 #include "glue-connection.h"
 
 #include "glib.h"
@@ -44,7 +43,6 @@
 #include "usb-glue.h"
 #endif
 
-static FILE *logfile = NULL;
 static int32_t logVerbosity;
 
 #ifdef ANDROID
@@ -67,6 +65,10 @@ void androidLog (const gchar *log_domain, GLogLevelFlags log_level,
     __android_log_print(p, "spice-glue", "%s", message);
 }
 #else
+
+#include <stdlib.h>
+static FILE *logfile = NULL;
+
 void logToFile (const gchar *log_domain, GLogLevelFlags log_level,
 		const gchar *message, gpointer user_data)
 {
@@ -243,27 +245,6 @@ int16_t SpiceGlibGlue_getNumberOfChannels() {
     }
 }
 
-extern volatile gboolean invalidated;
-extern volatile gint invalidate_x;
-extern volatile gint invalidate_y;
-extern volatile gint invalidate_w;
-extern volatile gint invalidate_h;
-extern volatile int copy_scheduled;
-
-uint32_t *glue_display_buffer = NULL;
-gboolean updatedDisplayBuffer = FALSE;
-
-/* MUTEX to ensure that glue_display_buffer is not freed while it's being written */
-STATIC_MUTEX  glue_display_lock;
-
-/* Size of the image stored in glue_display_buffer */
-int32_t glue_width = 0;
-int32_t glue_height = 0;
-
-/* Copy of the size of d->data the last time invalidate() was called */
-int32_t local_width = 0;
-int32_t local_height = 0;
-
 void SpiceGlibGlueInitializeGlue()
 {
 #ifdef PRINTING
@@ -272,7 +253,6 @@ void SpiceGlibGlueInitializeGlue()
 #ifdef SSO
     initializeSSO();
 #endif
-    STATIC_MUTEX_INIT(glue_display_lock);
 }
 
 
@@ -280,14 +260,8 @@ void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
 				   int32_t width, int32_t height)
 {
     SPICE_DEBUG("SpiceGlibGlueSetDisplayBuffer");
-
-    glue_display_buffer = display_buffer;
-    glue_width = width;
-    glue_height = height;
-
-    if (!copy_scheduled && global_display() != NULL) {
-        g_timeout_add(30, (GSourceFunc) copy_display_to_glue, NULL);
-        copy_scheduled = 1;
+    if (global_display() != NULL) {
+        spice_display_set_display_buffer(global_display(), display_buffer, width, height);
     }
 }
 
@@ -300,9 +274,7 @@ void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
  **/
 int16_t SpiceGlibGlueIsDisplayBufferUpdated(int32_t width, int32_t height)
 {
-    return updatedDisplayBuffer
-            || (width != local_width)
-            || (height != local_height);
+    return global_display() != NULL && spice_display_is_display_buffer_updated(global_display(), width, height);
 }
 
 /**
@@ -316,72 +288,30 @@ int16_t SpiceGlibGlueIsDisplayBufferUpdated(int32_t width, int32_t height)
  **/
 int16_t SpiceGlibGlueLockDisplayBuffer(int32_t *width, int32_t *height)
 {
-    STATIC_MUTEX_LOCK(glue_display_lock);
-
-    *width = local_width;
-    *height = local_height;
-
-    if (updatedDisplayBuffer) {
-    	updatedDisplayBuffer = FALSE;
-    	return 1;
-    }
-    return 0;
+    if (global_display() == NULL) {
+        *width = *height = 0;
+        return 0;
+    } else return spice_display_lock_display_buffer(global_display(), width, height);
 }
 
 void SpiceGlibGlueUnlockDisplayBuffer()
 {
-    STATIC_MUTEX_UNLOCK(glue_display_lock);
+    if (global_display() != NULL)
+        spice_display_unlock_display_buffer(global_display());
 }
 
 int16_t SpiceGlibGlueGetCursorPosition(int32_t* x, int32_t* y)
 {
-    SpiceDisplayPrivate *d;
-
     if (global_display() == NULL) {
-	return -1;
-    }
-
-    d = SPICE_DISPLAY_GET_PRIVATE(global_display());
-
-    if (d->data == NULL) {
-	//SPICE_DEBUG("d->data == NULL");
-	return -1;
-    }
-
-    *x=d->mouse_guest_x;
-    *y=d->mouse_guest_y;
-
-    return 0;
+	    return -1;
+    } else return spice_display_get_cursor_position(global_display(), x, y);
 }
 
 int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode)
 {
-    SpiceDisplay *display;
-    SpiceDisplayPrivate *d;
-    int scancode;
-
-    display = global_display();
     if (global_display() == NULL) {
         return -1;
-    }
-
-    d = SPICE_DISPLAY_GET_PRIVATE(display);
-    if (d->data == NULL) {
-        return -1;
-    }
-
-    SPICE_DEBUG("isDown= %d, hardware_keycode=%d", isDown, hardware_keycode);
-
-    if (!d->inputs)
-    	return-1;
-
-    scancode = hardware_keycode;
-    if (isDown) {
-        send_key(display, scancode, 1);
-    } else {
-	send_key(display, scancode, 0);
-    }
-    return 0;
+    } else return spice_display_key_event(global_display(), isDown, hardware_keycode);
 }
 
 /* GSourcefunc */

@@ -112,6 +112,23 @@ struct _SpiceDisplayPrivate {
 #endif
     guint                   keypress_delay;
     gint                    zoom_level;
+
+    gboolean                invalidated;
+    gint                    invalidate_x;
+    gint                    invalidate_y;
+    gint                    invalidate_w;
+    gint                    invalidate_h;
+    int                     copy_scheduled;
+
+    uint32_t                *glue_display_buffer;
+    gboolean                updatedDisplayBuffer;
+
+    /* MUTEX to ensure that glue_display_buffer is not freed while it's being written */
+    STATIC_MUTEX            glue_display_lock;
+
+    /* Size of the image stored in glue_display_buffer */
+    int32_t                 glue_width;
+    int32_t                 glue_height;
 };
 
 G_END_DECLS
