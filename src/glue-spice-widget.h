@@ -68,8 +68,6 @@ typedef enum {
 GType spice_display_get_type(void);
 
 SpiceDisplay* spice_display_new(SpiceSession *session, int id);
-void spice_display_send_keys(SpiceDisplay *display, const guint *keyvals,
-			     int nkeyvals, SpiceDisplayKeyEvent kind);
 void send_key(SpiceDisplay *display, int scancode, int down);
 
 gboolean copy_display_to_glue();

@@ -50,9 +50,7 @@ struct _SpiceDisplayPrivate {
     gint                    monitor_id;
 
     /* options */
-    bool                    keyboard_grab_enable;
     gboolean                keyboard_grab_inhibit;
-    bool                    mouse_grab_enable;
     bool                    resize_guest_enable;
 
     /* state */
@@ -68,23 +66,8 @@ struct _SpiceDisplayPrivate {
     uint32_t                disp_buffer_width;
     uint32_t                disp_buffer_height;
 
-    /* (ww, wh): window width/heigth; (mx, my): window position (x,y) */
-    gint                    ww, wh, wx, wy;
-
     bool                    convert;
-    bool                    have_mitshm;
-    gboolean                allow_scaling;
-    gboolean                only_downscale;
     gboolean                disable_inputs;
-
-    /* TODO: make a display object instead? */
-#ifdef WITH_X11
-    Display                 *dpy;
-    XVisualInfo             *vi;
-    XImage                  *ximage;
-    XShmSegmentInfo         *shminfo;
-    GC                      gc;
-#endif
 
     SpiceSession            *session;
     SpiceMainChannel        *main;
@@ -129,11 +112,6 @@ struct _SpiceDisplayPrivate {
 #endif
     guint                   keypress_delay;
     gint                    zoom_level;
-#ifdef GDK_WINDOWING_X11
-    int                     x11_accel_numerator;
-    int                     x11_accel_denominator;
-    int                     x11_threshold;
-#endif
 };
 
 G_END_DECLS

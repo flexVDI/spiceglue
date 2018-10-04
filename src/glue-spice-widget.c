@@ -184,9 +184,9 @@ static void spice_display_init(SpiceDisplay *display)
     d = display->priv = SPICE_DISPLAY_GET_PRIVATE(display);
     SPICE_DEBUG("%s: setting global_display to %p, private to %p", __FUNCTION__, global_display(), d);
     memset(d, 0, sizeof(*d));
-    d->have_mitshm = true;
     d->mouse_last_x = -1;
     d->mouse_last_y = -1;
+    d->monitor_ready = true;
 
     d->resize_guest_enable=true;
     SpiceGlibGlueOnGainFocus();
