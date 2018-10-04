@@ -179,11 +179,10 @@ static void spice_display_class_init(SpiceDisplayClass *klass)
 
 static void spice_display_init(SpiceDisplay *display)
 {
-    global_display = display;
     SpiceDisplayPrivate *d;
 
     d = display->priv = SPICE_DISPLAY_GET_PRIVATE(display);
-    SPICE_DEBUG("%s: setting global_display to %p, private to %p", __FUNCTION__, global_display, d);
+    SPICE_DEBUG("%s: setting global_display to %p, private to %p", __FUNCTION__, global_display(), d);
     memset(d, 0, sizeof(*d));
     d->have_mitshm = true;
     d->mouse_last_x = -1;
@@ -442,10 +441,10 @@ static void update_monitor_area(SpiceDisplay *display)
 
 int32_t SpiceGlibRecalcGeometry(int32_t x, int32_t y, int32_t w, int32_t h) {
 
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
         return -1;
     }
-    SpiceDisplay* display = global_display;
+    SpiceDisplay* display = global_display();
 
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
     if (d->data == NULL) {
@@ -640,10 +639,10 @@ void spicex_transform_input (SpiceDisplay *display,
 int16_t SpiceGlibGlueButtonEvent(int32_t eventX, int32_t eventY,
                  int16_t buttonId, int16_t buttonState, int16_t isDown)
 {
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
         return -1;
     }
-    SpiceDisplay* display = global_display;
+    SpiceDisplay* display = global_display();
 
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
     if (d->data == NULL) {
@@ -708,11 +707,11 @@ int16_t SpiceGlibGlueMotionEvent(int32_t eventX, int32_t eventY,
     GlueMotionEvent event;
     int x, y;
 
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
         return -1;
     }
 
-    display = global_display;
+    display = global_display();
     d = SPICE_DISPLAY_GET_PRIVATE(display);
     if (d->data == NULL) {
         return -1;
@@ -794,12 +793,12 @@ int16_t SpiceGlibGlueOnGainFocus()
     SpiceDisplayPrivate *d;
 
     SPICE_DEBUG("%s", __FUNCTION__);
-    if (global_display == NULL) {
-        SPICE_DEBUG("%s ERROR pointer global_display == NULL", __FUNCTION__);
+    if (global_display() == NULL) {
+        SPICE_DEBUG("%s ERROR pointer global_display() == NULL", __FUNCTION__);
         return -1;
     }
 
-    display = global_display;
+    display = global_display();
     d = SPICE_DISPLAY_GET_PRIVATE(display);
 
     if (d == NULL) {
@@ -845,11 +844,11 @@ int16_t SpiceGlibGlueOnLoseFocus()
     SpiceDisplayPrivate *d;
 
     SPICE_DEBUG("%s", __FUNCTION__);
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
         return -1;
     }
 
-    display = global_display;
+    display = global_display();
     d = SPICE_DISPLAY_GET_PRIVATE(display);
 
     if (d->data == NULL) {
@@ -884,10 +883,10 @@ int16_t SpiceGlibGlueScrollEvent(int16_t buttonState, int16_t isDown)
     SpiceDisplayPrivate *d;
     int button;
 
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
         return -1;
     }
-    display = global_display;
+    display = global_display();
     d = SPICE_DISPLAY_GET_PRIVATE(display);
     if (d->data == NULL) {
         return -1;
@@ -967,12 +966,12 @@ volatile int copy_scheduled = 0;
 
 gboolean copy_display_to_glue()
 {
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
         SPICE_DEBUG("There is no display to copy from");
         return FALSE;
     }
 
-    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display);
+    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display());
 
     if (d->data == NULL || d->width == 0 || d->height == 0) {
         SPICE_DEBUG("local display is not available: display_priv %p, data %p, %dx%d", d, d->data, d->width, d->height);
@@ -1038,10 +1037,10 @@ gboolean copy_display_to_glue()
 static void invalidate(SpiceChannel *channel,
                        gint x, gint y, gint w, gint h, gpointer data)
 {
-    if (global_display == NULL) return;
+    if (global_display() == NULL) return;
 
     SpiceDisplay *display = SPICE_DISPLAY(data);
-    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display);
+    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display());
     //char *cdata = (char *)d->data;
 
     if (invalidated == TRUE) {
@@ -1277,11 +1276,11 @@ int16_t SpiceGlibGlueGetCursor(uint32_t previousCursorId,
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
 
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
         return -1;
     }
 
-    display = global_display;
+    display = global_display();
     d = SPICE_DISPLAY_GET_PRIVATE(display);
 
     if (d->data == NULL) {

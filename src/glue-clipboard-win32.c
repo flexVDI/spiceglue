@@ -149,8 +149,8 @@ int SpiceGlibGlue_GrabGuestClipboard() {
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
     
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return -1;
     }
 
@@ -178,8 +178,8 @@ int SpiceGlibGlue_ReleaseGuestClipboard() {
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
     
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return -1;
     }
 
@@ -225,8 +225,8 @@ gboolean clipboard_requestFromGuest(SpiceMainChannel *main, guint selection,
         return FALSE;
     }
     
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return FALSE;
     }
 
@@ -459,8 +459,8 @@ static gboolean onRenderFormat_text() {
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
 
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return -1;
     }
 

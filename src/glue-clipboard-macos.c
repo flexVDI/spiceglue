@@ -94,8 +94,8 @@ static gboolean grab_guest_clipboard(gpointer data)
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
     
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return FALSE;
     }
 
@@ -132,8 +132,8 @@ static gboolean release_guest_clipboard(gpointer data)
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
     
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return FALSE;
     }
 
@@ -166,8 +166,8 @@ static gboolean clipboard_get_data(gpointer data)
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
 
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return FALSE;
     }
 
@@ -228,8 +228,8 @@ gboolean clipboard_requestFromGuest(SpiceMainChannel *main, guint selection,
         return FALSE;
     }
     
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return FALSE;
     }
 

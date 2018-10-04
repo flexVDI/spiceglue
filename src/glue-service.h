@@ -17,5 +17,4 @@
 
 #include "glue-spice-widget.h"
 
-extern SpiceDisplay* global_display;
-extern gboolean      soundEnabled;
+SpiceDisplay* global_display();

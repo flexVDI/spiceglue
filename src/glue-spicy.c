@@ -16,66 +16,64 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <glib/gi18n.h>
-#include <glib-object.h>
-
 #include <sys/stat.h>
-#define SPICY_C
 #include <spice-gtk/glib-compat.h>
-#include "glue-spice-widget.h"
 #include <spice-gtk/spice-audio.h>
 #include <spice-gtk/spice-common.h>
 #include "glue-spicy.h"
-#include "glue-service.h"
 
-G_DEFINE_TYPE (SpiceWindow, spice_window, G_TYPE_OBJECT);
+struct _SpiceConnection {
+    SpiceSession     *session;
+    SpiceMainChannel *main;
+    SpiceDisplay     *display;
+    SpiceAudio       *audio;
+    int              channels;
+    int              disconnecting;
+    gboolean         enable_sound;
+};
 
-static void connection_destroy(spice_connection *conn);
+G_DEFINE_TYPE(SpiceConnection, spice_connection, G_TYPE_OBJECT);
 
-/* ------------------------------------------------------------------ */
+static void spice_connection_dispose(GObject * obj);
 
-static SpiceWindow *create_spice_window(spice_connection *conn, SpiceChannel *channel, int id)
-{
-    SpiceWindow *win;
-
-    win = g_new0 (SpiceWindow, 1);
-    win->id = id;
-    //win->monitor_id = monitor_id;
-    win->conn = conn;
-    win->display_channel = channel;
-
-    win->spice = (spice_display_new(conn->session, id));
-    return win;
+static void spice_connection_class_init(SpiceConnectionClass * class) {
+    GObjectClass * object_class = G_OBJECT_CLASS(class);
+    object_class->dispose = spice_connection_dispose;
 }
 
-static void destroy_spice_window(SpiceWindow *win)
-{
-    if (win == NULL)
-        return;
+static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data);
+static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer data);
 
-    SPICE_DEBUG("destroy window (#%d:%d)", win->id, win->monitor_id);
-    //g_object_unref(win->ag);
-    //g_object_unref(win->ui);
-    //gtk_widget_destroy(win->toplevel);
-    g_object_unref(win);
+static void spice_connection_init(SpiceConnection * conn) {
+    conn->session = spice_session_new();
+
+    g_signal_connect(conn->session, "channel-new",
+                     G_CALLBACK(channel_new), conn);
+    g_signal_connect(conn->session, "channel-destroy",
+                     G_CALLBACK(channel_destroy), conn);
+    g_object_ref(conn);
+}
+
+static void spice_connection_dispose(GObject * obj) {
+    SpiceConnection * conn = SPICE_CONNECTION(obj);
+    g_clear_object(&conn->session);
+    g_clear_object(&conn->display);
+    G_OBJECT_CLASS(spice_connection_parent_class)->dispose(obj);
+}
+
+SpiceConnection *spice_connection_new(void)
+{
+    return SPICE_CONNECTION(g_object_new(SPICE_CONNECTION_TYPE, NULL));
 }
 
 static void main_channel_event(SpiceChannel *channel, SpiceChannelEvent event,
                                gpointer data)
 {
-    spice_connection *conn = data;
-    char password[64];
-    int rc = -1;
+    SpiceConnection *conn = SPICE_CONNECTION(data);
 
     switch (event) {
     case SPICE_CHANNEL_OPENED:
     	g_message("main channel: opened");
-
-    	//recent_add(conn->session);
         break;
     case SPICE_CHANNEL_SWITCHING:
         g_message("main channel: switching host");
@@ -83,40 +81,24 @@ static void main_channel_event(SpiceChannel *channel, SpiceChannelEvent event,
     case SPICE_CHANNEL_CLOSED:
         /* this event is only sent if the channel was succesfully opened before */
         g_message("main channel: closed");
-        connection_disconnect(conn);
+        spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_IO:
-        connection_disconnect(conn);
+        spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_TLS:
     case SPICE_CHANNEL_ERROR_LINK:
     case SPICE_CHANNEL_ERROR_CONNECT:
         g_message("main channel: failed to connect");
-        //rc = connect_dialog(conn->session);
-        if (rc == 0) {
-            connection_connect(conn);
-        } else {
-            connection_disconnect(conn);
-        }
+        spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_AUTH:
         g_warning("main channel: auth failure (wrong password?)");
-        strcpy(password, "");
-        /* FIXME i18 */
-        //rc = ask_user(NULL, _("Authentication"),
-        //              _("Please enter the spice server password"),
-        //              password, sizeof(password), true);
-        if (rc == 0) {
-            g_object_set(conn->session, "password", password, NULL);
-            connection_connect(conn);
-        } else {
-            connection_disconnect(conn);
-        }
+        spice_connection_disconnect(conn);
         break;
     default:
         /* TODO: more sophisticated error handling */
         g_warning("unknown main channel event: %d", event);
-        /* connection_disconnect(conn); */
         break;
     }
 }
@@ -142,68 +124,33 @@ static void generic_channel_event(SpiceChannel *channel, SpiceChannelEvent event
 	channel_name="record";
     }
 
-    int rc = -1;
-    spice_connection *conn = data;
+    SpiceConnection *conn = SPICE_CONNECTION(data);
 
     switch (event) {
 
     case SPICE_CHANNEL_CLOSED:
         g_warning("%s channel closed", channel_name);
-        connection_disconnect(conn);
+        spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_IO:
-        connection_disconnect(conn);
+        spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_TLS:
     case SPICE_CHANNEL_ERROR_LINK:
     case SPICE_CHANNEL_ERROR_CONNECT:
         g_message("%s channel: failed to connect", channel_name);
-        //rc = connect_dialog(conn->session);
-        if (rc == 0) {
-            connection_connect(conn);
-        } else {
-            connection_disconnect(conn);
-        }
+        spice_connection_disconnect(conn);
         break;
     default:
         /* TODO: more sophisticated error handling */
         g_warning("%s channel event: %d", channel_name, event);
-        /* connection_disconnect(conn); */
         break;
     }
-}
-
-static void main_mouse_update(SpiceChannel *channel, gpointer data)
-{
-    spice_connection *conn = data;
-    gint mode;
-
-    g_object_get(channel, "mouse-mode", &mode, NULL);
-    switch (mode) {
-    case SPICE_MOUSE_MODE_SERVER:
-        conn->mouse_state = "server";
-        break;
-    case SPICE_MOUSE_MODE_CLIENT:
-        conn->mouse_state = "client";
-        break;
-    default:
-        conn->mouse_state = "?";
-        break;
-    }
-}
-
-static void main_agent_update(SpiceChannel *channel, gpointer data)
-{
-    spice_connection *conn = data;
-
-    g_object_get(channel, "agent-connected", &conn->agent_connected, NULL);
-    conn->agent_state = conn->agent_connected ? _("yes") : _("no");
-    SPICE_DEBUG(" PENDIENTE actualizar etiq. estado de ventana cliente. agent-state %s", conn->agent_state);
 }
 
 static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 {
-    spice_connection *conn = data;
+    SpiceConnection *conn = data;
     int id;
 
     g_object_get(channel, "channel-id", &id, NULL);
@@ -215,24 +162,17 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
         conn->main = SPICE_MAIN_CHANNEL(channel);
         g_signal_connect(channel, "channel-event",
                          G_CALLBACK(main_channel_event), conn);
-        g_signal_connect(channel, "main-mouse-update",
-                         G_CALLBACK(main_mouse_update), conn);
-        g_signal_connect(channel, "main-agent-update",
-                         G_CALLBACK(main_agent_update), conn);
-        main_mouse_update(channel, conn);
-        main_agent_update(channel, conn);
     }
 
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-        if (id >= SPICE_N_ELEMENTS(conn->wins))
+        if (id > 0) {
+            g_warning("Only one display channel supported!");
             return;
-        if (conn->wins[id] != NULL)
+        }
+        if (conn->display != NULL)
             return;
         SPICE_DEBUG("new display channel (#%d)", id);
-        conn->wins[id] = create_spice_window(conn, channel, id);
-        SPICE_DEBUG("display-mark not connected Aqui el original conecta display_monitors");
-        //g_signal_connect(channel, "display-mark",
-        //                 G_CALLBACK(display_mark), conn->wins[id]); Mostrar / ocultar imagen cuando lo pide el spice server
+        conn->display = spice_display_new(conn->session, id);
 
         g_signal_connect(channel, "channel-event",
                          G_CALLBACK(generic_channel_event), conn);
@@ -242,13 +182,11 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 
     if (SPICE_IS_INPUTS_CHANNEL(channel)) {
         SPICE_DEBUG("new inputs channel");
-        //g_signal_connect(channel, "inputs-modifiers",
-        //                 G_CALLBACK(inputs_modifiers), conn);
         g_signal_connect(channel, "channel-event",
                          G_CALLBACK(generic_channel_event), conn);
     }
 
-    if (soundEnabled && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
+    if (conn->enable_sound && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
         SPICE_DEBUG("new audio channel");
         conn->audio = spice_audio_get(s, NULL);
         g_signal_connect(channel, "channel-event",
@@ -256,10 +194,6 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
     }
 
     if (SPICE_IS_PORT_CHANNEL(channel)) {
-	//    g_signal_connect(channel, "notify::port-opened",
-	//                     G_CALLBACK(port_opened), conn);
-	//    g_signal_connect(channel, "port-data",
-	//                     G_CALLBACK(port_data), conn);
         spice_channel_connect(channel);
     }
 }
@@ -268,7 +202,7 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
 {
     SPICE_DEBUG("channel_destroy called");
 
-    spice_connection *conn = data;
+    SpiceConnection *conn = data;
     int id;
 
     g_object_get(channel, "channel-id", &id, NULL);
@@ -278,23 +212,17 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
     }
 
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-        if (id >= SPICE_N_ELEMENTS(conn->wins))
+        if (id > 0)
             return;
-        if (conn->wins[id] == NULL)
+        if (conn->display == NULL)
             return;
         SPICE_DEBUG("zap display channel (#%d)", id);
-        destroy_spice_window(conn->wins[id]);
-        conn->wins[id] = NULL;
+        g_clear_object(&conn->display);
     }
 
-    if (soundEnabled && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
+    if (conn->enable_sound && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
         SPICE_DEBUG("zap audio channel");
     }
-
-    //if (SPICE_IS_PORT_CHANNEL(channel)) {
-    //    if (SPICE_PORT_CHANNEL(channel) == stdin_port)
-    //        stdin_port = NULL;
-    //}
 
     conn->channels--;
     if (conn->channels > 0) {
@@ -302,42 +230,16 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
         return;
     }
 
-    connection_destroy(conn);
+    g_object_unref(conn);
 }
 
-static void migration_state(GObject *session,
-                            GParamSpec *pspec, gpointer data)
-{
-    SpiceSessionMigration mig;
-
-    g_object_get(session, "migration-state", &mig, NULL);
-    if (mig == SPICE_SESSION_MIGRATION_SWITCHING)
-        g_message("migrating session");
-}
-
-spice_connection *connection_new(void)
-{
-    spice_connection *conn;
-
-    conn = g_new0(spice_connection, 1);
-    conn->session = spice_session_new();
-    g_signal_connect(conn->session, "channel-new",
-                     G_CALLBACK(channel_new), conn);
-    g_signal_connect(conn->session, "channel-destroy",
-                     G_CALLBACK(channel_destroy), conn);
-    g_signal_connect(conn->session, "notify::migration-state",
-                     G_CALLBACK(migration_state), conn);
-
-    return conn;
-}
-
-void connection_connect(spice_connection *conn)
+void spice_connection_connect(SpiceConnection *conn)
 {
     conn->disconnecting = false;
     spice_session_connect(conn->session);
 }
 
-void connection_disconnect(spice_connection *conn)
+void spice_connection_disconnect(SpiceConnection *conn)
 {
     if (conn->disconnecting)
         return;
@@ -345,38 +247,43 @@ void connection_disconnect(spice_connection *conn)
     spice_session_disconnect(conn->session);
 }
 
-static void connection_destroy(spice_connection *conn)
-{
-    SPICE_DEBUG("connection_destroy()");
-    g_object_unref(conn->session);
-    free(conn);
-}
-
 /* Saver config parameters to session Object*/
-void spice_session_setup(SpiceSession *session, const char *host,
+void spice_connection_setup(SpiceConnection *conn, const char *host,
 			 const char *port,
 			 const char *tls_port,
 			 const char *ws_port,
 			 const char *password,
 			 const char *ca_file,
-			 const char *cert_subj) {
+			 const char *cert_subj,
+             gboolean enable_sound) {
 
     SPICE_DEBUG("spice_session_setup host=%s, ws_port=%s, port=%s, tls_port=%s", host, ws_port, port, tls_port);
-    g_return_if_fail(SPICE_IS_SESSION(session));
+    g_return_if_fail(SPICE_IS_SESSION(conn->session));
 
     if (host)
-        g_object_set(session, "host", host, NULL);
+        g_object_set(conn->session, "host", host, NULL);
     // If we receive "-1" for a port, we assume the port is not set.
     if (port && strcmp (port, "-1") != 0)
-        g_object_set(session, "port", port, NULL);
+        g_object_set(conn->session, "port", port, NULL);
     if (tls_port && strcmp (tls_port, "-1") != 0)
-        g_object_set(session, "tls-port", tls_port, NULL);
+        g_object_set(conn->session, "tls-port", tls_port, NULL);
     if (ws_port && strcmp (ws_port, "-1") != 0)
-        g_object_set(session, "ws-port", ws_port, NULL);
+        g_object_set(conn->session, "ws-port", ws_port, NULL);
     if (password)
-        g_object_set(session, "password", password, NULL);
+        g_object_set(conn->session, "password", password, NULL);
     if (ca_file)
-        g_object_set(session, "ca-file", ca_file, NULL);
+        g_object_set(conn->session, "ca-file", ca_file, NULL);
     if (cert_subj)
-        g_object_set(session, "cert-subject", cert_subj, NULL);
+        g_object_set(conn->session, "cert-subject", cert_subj, NULL);
+    conn->enable_sound = enable_sound;
+}
+
+SpiceDisplay *spice_connection_get_display(SpiceConnection *conn)
+{
+    return conn->display;
+}
+
+int spice_connection_get_num_channels(SpiceConnection *conn)
+{
+    return conn->channels;
 }

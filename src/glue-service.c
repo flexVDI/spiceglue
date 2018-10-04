@@ -166,10 +166,11 @@ void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel)
     SPICE_DEBUG("Logging initialized.");
 }
 
-// Global state
-spice_connection *mainconn = NULL;
-SpiceDisplay *global_display = NULL;
-gboolean soundEnabled = FALSE;
+static SpiceConnection *mainconn = NULL;
+
+SpiceDisplay* global_display() {
+    return mainconn != NULL ? spice_connection_get_display(mainconn) : NULL;
+}
 
 void SpiceGlibGlue_MainLoop(void)
 {
@@ -184,9 +185,8 @@ void SpiceGlibGlue_MainLoop(void)
 static gboolean disconnect1()
 {
     SPICE_DEBUG("SpiceGlibGlue_Disconnect\n");
-    connection_disconnect(mainconn);
-    mainconn = NULL;
-    global_display = NULL;
+    spice_connection_disconnect(mainconn);
+    g_clear_object(&mainconn);
     return FALSE;
 }
 
@@ -204,15 +204,14 @@ int16_t SpiceGlibGlue_Connect(char* host,
 			      int32_t enable_sound)
 {
     int result = 0;
-    soundEnabled = enable_sound;
 
     SPICE_DEBUG("SpiceClientConnect session_setup");
 
-    mainconn = connection_new();
-    spice_session_setup(mainconn->session, host,
+    mainconn = spice_connection_new();
+    spice_connection_setup(mainconn, host,
 			port, tls_port, ws_port,
 			password,
-			ca_file, cert_subj);
+			ca_file, cert_subj, enable_sound);
 
 #if defined(PRINTING) || defined(SSO)
     flexvdi_port_register_session(mainconn->session);
@@ -223,13 +222,25 @@ int16_t SpiceGlibGlue_Connect(char* host,
 
     SPICE_DEBUG("SpiceClientConnect connection_connect");
 
-    connection_connect(mainconn);
+    spice_connection_connect(mainconn);
 #if defined(USBREDIR)
 	usb_glue_register_session(mainconn->session);
 #endif
     SPICE_DEBUG("SpiceClientConnect exit");
 
     return result;
+}
+
+int16_t SpiceGlibGlue_isConnected() {
+    return (mainconn != NULL && spice_connection_get_num_channels(mainconn) > 3);
+}
+
+int16_t SpiceGlibGlue_getNumberOfChannels() {
+    if (mainconn == NULL) {
+        return 0;
+    } else {
+        return spice_connection_get_num_channels(mainconn);
+    }
 }
 
 extern volatile gboolean invalidated;
@@ -274,7 +285,7 @@ void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
     glue_width = width;
     glue_height = height;
 
-    if (!copy_scheduled && global_display != NULL) {
+    if (!copy_scheduled && global_display() != NULL) {
         g_timeout_add(30, (GSourceFunc) copy_display_to_glue, NULL);
         copy_scheduled = 1;
     }
@@ -326,11 +337,11 @@ int16_t SpiceGlibGlueGetCursorPosition(int32_t* x, int32_t* y)
 {
     SpiceDisplayPrivate *d;
 
-    if (global_display == NULL) {
+    if (global_display() == NULL) {
 	return -1;
     }
 
-    d = SPICE_DISPLAY_GET_PRIVATE(global_display);
+    d = SPICE_DISPLAY_GET_PRIVATE(global_display());
 
     if (d->data == NULL) {
 	//SPICE_DEBUG("d->data == NULL");
@@ -349,8 +360,8 @@ int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode)
     SpiceDisplayPrivate *d;
     int scancode;
 
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return -1;
     }
 
@@ -373,26 +384,14 @@ int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode)
     return 0;
 }
 
-int16_t SpiceGlibGlue_isConnected() {
-    return (mainconn != NULL && mainconn->channels > 3);
-}
-
-int16_t SpiceGlibGlue_getNumberOfChannels() {
-    if (mainconn == NULL) {
-        return 0;
-    } else {
-        return mainconn->channels;
-    }
-}
-
 /* GSourcefunc */
 static gboolean sendPowerEvent1(int16_t powerEvent)
 {
     SpiceDisplay *display;
     SpiceDisplayPrivate *d;
 
-    display = global_display;
-    if (global_display == NULL) {
+    display = global_display();
+    if (global_display() == NULL) {
         return -1;
     }
 
