@@ -20,7 +20,7 @@
 #include <spice-gtk/glib-compat.h>
 #include <spice-gtk/spice-audio.h>
 #include <spice-gtk/spice-common.h>
-#include "glue-spicy.h"
+#include "glue-connection.h"
 
 struct _SpiceConnection {
     SpiceSession     *session;

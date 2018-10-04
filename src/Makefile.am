@@ -3,7 +3,7 @@ AM_LDFLAGS = -no-undefined
 
 lib_LTLIBRARIES=libspiceglue.la
 libspiceglue_la_LIBADD=$(GLIB_LIBS) $(SPICEGLIB_LIBS)
-libspiceglue_la_SOURCES=glue-spice-widget.c glue-service.c glue-spicy.c
+libspiceglue_la_SOURCES=glue-spice-widget.c glue-service.c glue-connection.c
 
 if WITH_CLIPBOARD_WIN32
 libspiceglue_la_SOURCES+=glue-clipboard-win32.c

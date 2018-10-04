@@ -27,7 +27,7 @@
 
 #include "glue-spice-widget.h"
 #include "glue-spice-widget-priv.h"
-#include "glue-spicy.h"
+#include "glue-connection.h"
 
 #include "glib.h"
 #if defined(PRINTING) || defined(SSO)
