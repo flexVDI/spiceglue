@@ -77,8 +77,8 @@ struct _SpiceUsbDeviceWidgetPrivate {
     gboolean isDeviceListChanged;
     gboolean isMsgChanged;
 
-    STATIC_MUTEX deviceList_lock;
-    STATIC_MUTEX err_msg_lock;
+    GMutex deviceList_lock;
+    GMutex err_msg_lock;
 
 };
 
@@ -158,8 +158,8 @@ static GObject *spice_usb_device_widget_constructor(
         g_clear_error(&err);
         return obj;
     }
-    STATIC_MUTEX_INIT(priv->deviceList_lock);
-    STATIC_MUTEX_INIT(priv->err_msg_lock);
+    g_mutex_init(&priv->deviceList_lock);
+    g_mutex_init(&priv->err_msg_lock);
 
     /*  Added to the local machine. 
      *  Different from "connected" which means redirected. */
@@ -195,18 +195,18 @@ static void spice_usb_device_widget_finalize(GObject *object)
     SpiceUsbDeviceWidget *self = SPICE_USB_DEVICE_WIDGET(object);
     SpiceUsbDeviceWidgetPrivate *priv = self->priv;
     
-    STATIC_MUTEX_LOCK(priv->deviceList_lock);
+    g_mutex_lock(&priv->deviceList_lock);
     if (priv->deviceList) 
         g_slist_free(priv->deviceList);
-    STATIC_MUTEX_UNLOCK(priv->deviceList_lock);
-    STATIC_MUTEX_CLEAR(priv->deviceList_lock);
+    g_mutex_unlock(&priv->deviceList_lock);
+    g_mutex_clear(&priv->deviceList_lock);
     
-    STATIC_MUTEX_LOCK(priv->err_msg_lock);
+    g_mutex_lock(&priv->err_msg_lock);
     if (priv->err_msg != NULL) {
         g_free(priv->err_msg);
     }
-    STATIC_MUTEX_UNLOCK(priv->err_msg_lock);
-    STATIC_MUTEX_CLEAR(priv->err_msg_lock);
+    g_mutex_unlock(&priv->err_msg_lock);
+    g_mutex_clear(&priv->err_msg_lock);
     
         
     if (priv->manager) {
@@ -285,7 +285,7 @@ static void addErrorMessage(SpiceUsbDeviceWidget *self, char* newMessage) {
     g_debug(" %s:%d:%s() %s", __FILE__, __LINE__, __func__, newMessage);
     SpiceUsbDeviceWidgetPrivate *priv = self->priv;
 
-    STATIC_MUTEX_LOCK(priv->err_msg_lock);
+    g_mutex_lock(&priv->err_msg_lock);
     /* If we cannot redirect this device, append the error message to
        err_msg, but only if it is *not* already there! */
 
@@ -301,7 +301,7 @@ static void addErrorMessage(SpiceUsbDeviceWidget *self, char* newMessage) {
     } else {
         priv->err_msg = g_strdup(newMessage);
     }
-    STATIC_MUTEX_UNLOCK(priv->err_msg_lock);
+    g_mutex_unlock(&priv->err_msg_lock);
 }
 
 /* Checks that the device in the deviInfo can be redirected.
@@ -352,12 +352,12 @@ void spice_usb_device_widget_get_error_msg(SpiceUsbDeviceWidget* self,
     SpiceUsbDeviceWidgetPrivate *priv = self->priv;
     if (priv->err_msg == NULL) return;
     
-    STATIC_MUTEX_LOCK(priv->err_msg_lock);
+    g_mutex_lock(&priv->err_msg_lock);
     strncpy(msg, priv->err_msg, MAX_USB_ERR_MSG_SIZE);
     g_free(priv->err_msg);
     priv->err_msg = NULL;
     priv->isMsgChanged = FALSE;
-    STATIC_MUTEX_UNLOCK(priv->err_msg_lock);
+    g_mutex_unlock(&priv->err_msg_lock);
 }
 
 /*  
@@ -372,13 +372,13 @@ static void spice_usb_device_widget_update_status(gpointer user_data)
     SpiceUsbDeviceWidget *self = (SpiceUsbDeviceWidget *)user_data;
     SpiceUsbDeviceWidgetPrivate *priv = self->priv;
 
-    STATIC_MUTEX_LOCK(priv->deviceList_lock);
+    g_mutex_lock(&priv->deviceList_lock);
     GSList *iterator = NULL;
     for (iterator = priv->deviceList; iterator; iterator = iterator->next) {
         UsbDeviceInfo *d = iterator->data;
         check_can_redirect(self, d);
     }
-    STATIC_MUTEX_UNLOCK(priv->deviceList_lock);
+    g_mutex_unlock(&priv->deviceList_lock);
 }
 
 /* Update the isShared and isOpPending status of the corresponding device.
@@ -387,7 +387,7 @@ static void flagStatusPerDevice (SpiceUsbDeviceWidget* self,
         SpiceUsbDevice* device, guint isShared, guint isOpPending) {
 
     SpiceUsbDeviceWidgetPrivate *priv = self->priv;
-    STATIC_MUTEX_LOCK(priv->deviceList_lock);
+    g_mutex_lock(&priv->deviceList_lock);
     GSList *iterator = NULL;
     for (iterator = priv->deviceList; iterator; iterator = iterator->next) {
         UsbDeviceInfo* info = (UsbDeviceInfo*)iterator->data;
@@ -401,7 +401,7 @@ static void flagStatusPerDevice (SpiceUsbDeviceWidget* self,
         }
     }
     priv->isDeviceListChanged = TRUE;
-    STATIC_MUTEX_UNLOCK(priv->deviceList_lock);
+    g_mutex_unlock(&priv->deviceList_lock);
 }
 
 typedef struct _ {
@@ -469,7 +469,7 @@ void spice_usb_device_widget_share(SpiceUsbDeviceWidget* self,
      * hang/crash/leave the usb blinking forever... */
     GSList *iterator;
     
-    STATIC_MUTEX_LOCK(priv->deviceList_lock);
+    g_mutex_lock(&priv->deviceList_lock);
 
     for (iterator = priv->deviceList; iterator; iterator = iterator->next) {
         UsbDeviceInfo* info = (UsbDeviceInfo*)iterator->data;
@@ -480,7 +480,7 @@ void spice_usb_device_widget_share(SpiceUsbDeviceWidget* self,
         }
     }
     priv->isDeviceListChanged = TRUE;
-    STATIC_MUTEX_UNLOCK(priv->deviceList_lock);
+    g_mutex_unlock(&priv->deviceList_lock);
 
     spice_usb_device_widget_update_status(self);
 }
@@ -534,7 +534,7 @@ GSList *spice_usb_device_widget_get_devices(SpiceUsbDeviceWidget* self) {
     GSList *listCopy = NULL;
     GSList *iterator = NULL;
     
-    STATIC_MUTEX_LOCK(priv->deviceList_lock);
+    g_mutex_lock(&priv->deviceList_lock);
     for (iterator = priv->deviceList; iterator; iterator = iterator->next) {
         UsbDeviceInfo *d = iterator->data;
         UsbDeviceInfo *devCopy = g_new (UsbDeviceInfo, 1);
@@ -550,7 +550,7 @@ GSList *spice_usb_device_widget_get_devices(SpiceUsbDeviceWidget* self) {
     }
     
     priv->isDeviceListChanged = FALSE;
-    STATIC_MUTEX_UNLOCK(priv->deviceList_lock);
+    g_mutex_unlock(&priv->deviceList_lock);
     
     return listCopy;
 }
@@ -594,10 +594,10 @@ static void device_added_cb(SpiceUsbDeviceManager *manager,
     }
     SPICE_DEBUG("New USB Device; id: %s, *dev %p, shared= %d, enabled: %d, desc: %s", 
         deviceInfo->id, device, deviceInfo->isShared, deviceInfo->isEnabled, deviceInfo->name);
-    STATIC_MUTEX_LOCK(priv->deviceList_lock);
+    g_mutex_lock(&priv->deviceList_lock);
     priv->deviceList = g_slist_append(priv->deviceList, deviceInfo);
     priv->isDeviceListChanged = TRUE;
-    STATIC_MUTEX_UNLOCK(priv->deviceList_lock);
+    g_mutex_unlock(&priv->deviceList_lock);
 }
 
 
@@ -611,7 +611,7 @@ static void device_added_cb(SpiceUsbDeviceManager *manager,
     SpiceUsbDeviceWidgetPrivate *priv = self->priv;
     GSList *iterator;
     
-    STATIC_MUTEX_LOCK(priv->deviceList_lock);
+    g_mutex_lock(&priv->deviceList_lock);
 
     for (iterator = priv->deviceList; iterator; iterator = iterator->next) {
         UsbDeviceInfo* info = (UsbDeviceInfo*)iterator->data;
@@ -623,7 +623,7 @@ static void device_added_cb(SpiceUsbDeviceManager *manager,
         }
     }
     priv->isDeviceListChanged = TRUE;
-    STATIC_MUTEX_UNLOCK(priv->deviceList_lock);
+    g_mutex_unlock(&priv->deviceList_lock);
 }
 
 

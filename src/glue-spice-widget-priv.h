@@ -36,9 +36,8 @@ G_BEGIN_DECLS
 #endif
 
 #include <spice-session.h>
-#include <spice-gtk/spice-common.h>
-#include <spice-gtk/spice-util-priv.h>
 
+#include "spice-grabsequence.h"
 #include "mono-glue-types.h"
 
 #define SPICE_DISPLAY_GET_PRIVATE(obj)                                  \
@@ -51,7 +50,7 @@ struct _SpiceDisplayPrivate {
 
     /* options */
     gboolean                keyboard_grab_inhibit;
-    bool                    resize_guest_enable;
+    gboolean                    resize_guest_enable;
 
     /* state */
     gboolean                ready;
@@ -66,7 +65,7 @@ struct _SpiceDisplayPrivate {
     uint32_t                disp_buffer_width;
     uint32_t                disp_buffer_height;
 
-    bool                    convert;
+    gboolean                    convert;
     gboolean                disable_inputs;
 
     SpiceSession            *session;
@@ -80,7 +79,7 @@ struct _SpiceDisplayPrivate {
     int                     mouse_grab_active;
     
     /* MUTEX to control cursor access */
-    STATIC_MUTEX            cursor_lock;
+    GMutex            cursor_lock;
     /* Client mode mouse, for mono client */
     MonoGlueCursor	    *mouse_cursor;
     /* Internal cursor identification */
@@ -94,8 +93,8 @@ struct _SpiceDisplayPrivate {
     int                     mouse_guest_x;
     int                     mouse_guest_y;
 
-    bool                    keyboard_grab_active;
-    bool                    have_focus;
+    gboolean                    keyboard_grab_active;
+    gboolean                    have_focus;
 
     const guint16           *keycode_map;
     size_t                  keycode_maplen;
@@ -124,7 +123,7 @@ struct _SpiceDisplayPrivate {
     gboolean                updatedDisplayBuffer;
 
     /* MUTEX to ensure that glue_display_buffer is not freed while it's being written */
-    STATIC_MUTEX            glue_display_lock;
+    GMutex            glue_display_lock;
 
     /* Size of the image stored in glue_display_buffer */
     int32_t                 glue_width;

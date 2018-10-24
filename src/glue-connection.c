@@ -17,9 +17,7 @@
  */
 
 #include <sys/stat.h>
-#include <spice-gtk/glib-compat.h>
-#include <spice-gtk/spice-audio.h>
-#include <spice-gtk/spice-common.h>
+#include <spice-client.h>
 #include "glue-connection.h"
 
 struct _SpiceConnection {
@@ -235,7 +233,7 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
 
 void spice_connection_connect(SpiceConnection *conn)
 {
-    conn->disconnecting = false;
+    conn->disconnecting = FALSE;
     spice_session_connect(conn->session);
 }
 
@@ -243,7 +241,7 @@ void spice_connection_disconnect(SpiceConnection *conn)
 {
     if (conn->disconnecting)
         return;
-    conn->disconnecting = true;
+    conn->disconnecting = TRUE;
     spice_session_disconnect(conn->session);
 }
 

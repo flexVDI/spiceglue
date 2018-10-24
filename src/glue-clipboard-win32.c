@@ -377,7 +377,7 @@ gboolean clipboard_grabByGuest(SpiceMainChannel *main, guint selection,
             SPICE_DEBUG("CB: IT IS UTF8");
             
             if (!OpenClipboard(hwnd)) {
-                return false;
+                return FALSE;
             }
             sth_grabbed= TRUE;
             guestOwnsClipboard = TRUE;

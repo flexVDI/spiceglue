@@ -176,7 +176,7 @@ SpiceDisplay* global_display() {
 
 void SpiceGlibGlue_MainLoop(void)
 {
-    GMainLoop *mainloop = g_main_loop_new(NULL, false);
+    GMainLoop *mainloop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(mainloop);
     g_main_loop_unref(mainloop);
 #if defined(PRINTING) || defined(SSO)
@@ -270,7 +270,7 @@ void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
  *  IN:
  *  OUT:
  * Returns true if current buffer has changed and has not been copied, since
- * the last call to SpiceGlibGlueLockDisplayBuffer (not to this function), false otherwise.
+ * the last call to SpiceGlibGlueLockDisplayBuffer (not to this function), FALSE otherwise.
  **/
 int16_t SpiceGlibGlueIsDisplayBufferUpdated(int32_t width, int32_t height)
 {
@@ -284,7 +284,7 @@ int16_t SpiceGlibGlueIsDisplayBufferUpdated(int32_t width, int32_t height)
  *  IN: don't care
  *  OUT: size of display used by the spice-client-lib: Real guest display, and what the
  * Returns true if current buffer has changed and has not been copied, since
- * the last call to SpiceGlibGlueLockDisplayBuffer, false otherwise.
+ * the last call to SpiceGlibGlueLockDisplayBuffer, FALSE otherwise.
  **/
 int16_t SpiceGlibGlueLockDisplayBuffer(int32_t *width, int32_t *height)
 {

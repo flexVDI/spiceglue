@@ -189,13 +189,13 @@ static void spice_display_init(SpiceDisplay *display)
     memset(d, 0, sizeof(*d));
     d->mouse_last_x = -1;
     d->mouse_last_y = -1;
-    d->monitor_ready = true;
+    d->monitor_ready = TRUE;
 
-    d->resize_guest_enable=true;
+    d->resize_guest_enable=TRUE;
     SpiceGlibGlueOnGainFocus();
 
-    STATIC_MUTEX_INIT(d->cursor_lock);
-    STATIC_MUTEX_INIT(d->glue_display_lock);
+    g_mutex_init(&d->cursor_lock);
+    g_mutex_init(&d->glue_display_lock);
 }
 
 /* ---------------------------------------------------------------- */
@@ -263,7 +263,7 @@ static gboolean win32_clip_cursor(void)
     }
 
     monitor = MonitorFromRect(&window, MONITOR_DEFAULTTONEAREST);
-    g_return_val_if_fail(monitor != NULL, false);
+    g_return_val_if_fail(monitor != NULL, FALSE);
     mi.cbSize = sizeof(mi);
     if (!GetMonitorInfo(monitor, &mi))
         goto error;
@@ -271,7 +271,7 @@ static gboolean win32_clip_cursor(void)
 
     if (!IntersectRect(&rect, &window, &workarea)) {
         g_critical("error clipping cursor");
-        return false;
+        return FALSE;
     }
 
     SPICE_DEBUG("clip rect t:%ld b:%ld l:%ld r:%ld ",
@@ -282,7 +282,7 @@ static gboolean win32_clip_cursor(void)
         goto error;
     }
 
-    return true;
+    return TRUE;
 
  error:
     {
@@ -292,7 +292,7 @@ static gboolean win32_clip_cursor(void)
         SPICE_DEBUG("win32_clip_cursor() failed");
     }
 
-    return false;
+    return FALSE;
 }
 #endif
 
@@ -315,13 +315,13 @@ static gboolean do_pointer_grab(SpiceDisplay *display)
     status = 0;
 
     if (status != 0/*GDK_GRAB_SUCCESS*/) {
-        d->mouse_grab_active = false;
+        d->mouse_grab_active = FALSE;
         g_warning("pointer grab failed %d", status);
         SPICE_DEBUG("%s failed;", __FUNCTION__);
     } else {
         SPICE_DEBUG("%s mouse_grab_active=true", __FUNCTION__);
-        d->mouse_grab_active = true;
-        g_signal_emit(display, signals[SPICE_DISPLAY_MOUSE_GRAB], 0, true);
+        d->mouse_grab_active = TRUE;
+        g_signal_emit(display, signals[SPICE_DISPLAY_MOUSE_GRAB], 0, TRUE);
     }
 
     if (status == 0 /*GDK_GRAB_SUCCESS*/)
@@ -411,7 +411,7 @@ static void update_monitor_area(SpiceDisplay *display)
     }
     if (c == NULL) {
         SPICE_DEBUG("update monitor: no monitor %d", d->monitor_id);
-        //set_monitor_ready(display, false);
+        //set_monitor_ready(display, FALSE);
         if (spice_channel_test_capability(d->display, SPICE_DISPLAY_CAP_MONITORS_CONFIG)) {
             SPICE_DEBUG("waiting until MonitorsConfig is received");
             g_clear_pointer(&monitors, g_array_unref);
@@ -440,7 +440,7 @@ static void update_monitor_area(SpiceDisplay *display)
     g_clear_pointer(&monitors, g_array_unref);
     /* by display whole surface */
     //update_area(display, 0, 0, d->width, d->height);
-    //set_monitor_ready(display, true);
+    //set_monitor_ready(display, TRUE);
 }
 
 int32_t SpiceGlibRecalcGeometry(int32_t x, int32_t y, int32_t w, int32_t h) {
@@ -465,8 +465,8 @@ int32_t SpiceGlibRecalcGeometry(int32_t x, int32_t y, int32_t w, int32_t h) {
         w, h, x, y,
         zoom);
     if (d->resize_guest_enable) {
-        spice_main_set_display(d->main, get_display_id(display),
-                   x, y, w / zoom, h / zoom);
+        spice_main_channel_update_display(d->main, get_display_id(display),
+                                          x, y, w / zoom, h / zoom, TRUE);
     }
 
     return 0;
@@ -598,9 +598,9 @@ static void try_mouse_ungrab(SpiceDisplay *display)
 #endif
     set_mouse_accel(display, TRUE);
 
-    d->mouse_grab_active = false;
+    d->mouse_grab_active = FALSE;
 
-    g_signal_emit(display, signals[SPICE_DISPLAY_MOUSE_GRAB], 0, false);
+    g_signal_emit(display, signals[SPICE_DISPLAY_MOUSE_GRAB], 0, FALSE);
 }
 
 static int button_mono_to_spice(int buttonId)
@@ -653,7 +653,7 @@ int16_t SpiceGlibGlueButtonEvent(int32_t eventX, int32_t eventY,
         buttonId, eventX, eventY, buttonState);
 
     if (d->disable_inputs)
-        return true;
+        return TRUE;
 
     spicex_transform_input (display, eventX, eventY, &x, &y);
 
@@ -662,7 +662,7 @@ int16_t SpiceGlibGlueButtonEvent(int32_t eventX, int32_t eventY,
         if (!d->mouse_grab_active) {
             try_mouse_grab(display);
             SPICE_DEBUG("%s Evento dedicado a tratar de grab el raton no hacemos click", __FUNCTION__);
-            return true;
+            return TRUE;
         }
     } else {
         /* allow to drag and drop between windows/displays:
@@ -681,7 +681,7 @@ int16_t SpiceGlibGlueButtonEvent(int32_t eventX, int32_t eventY,
     }
 
     if (!d->inputs)
-        return true;
+        return TRUE;
 
     if (isDown) {
         spice_inputs_channel_button_press(d->inputs,
@@ -692,7 +692,7 @@ int16_t SpiceGlibGlueButtonEvent(int32_t eventX, int32_t eventY,
                         button_mono_to_spice(buttonId),
                         button_mask_monoglue_to_spice(buttonState));
     }
-    return true;
+    return TRUE;
 }
 
 int16_t SpiceGlibGlueMotionEvent(int32_t eventX, int32_t eventY,
@@ -719,9 +719,9 @@ int16_t SpiceGlibGlueMotionEvent(int32_t eventX, int32_t eventY,
     event.buttonState = buttonState;
 
     if (!d->inputs)
-        return true;
+        return TRUE;
     if (d->disable_inputs)
-        return true;
+        return TRUE;
 
     spicex_transform_input (display, eventX, eventY, &x, &y);
 
@@ -819,13 +819,13 @@ int16_t SpiceGlibGlueOnGainFocus()
      */
     if (d->have_focus) {
     SPICE_DEBUG("%s have_focus==true not setting again. NOT setting focus again", __FUNCTION__);
-    return true;
+    return TRUE;
     }
 
     // We released the keys when we lost focus, so this should do nothing now.
     release_keys(display);
     sync_keyboard_lock_modifiers(display);
-    update_keyboard_focus(display, true);
+    update_keyboard_focus(display, TRUE);
     // TODO call this again...
     // FIXME
     //try_keyboard_grab(display);
@@ -857,11 +857,11 @@ int16_t SpiceGlibGlueOnLoseFocus()
      * (this happens when doing the grab from the enter_event callback).
      */
     if (d->keyboard_grab_active)
-        return true;
+        return TRUE;
 
 
     release_keys(display);
-    update_keyboard_focus(display, false);
+    update_keyboard_focus(display, FALSE);
 
 #ifdef WIN32
     if (d->mouse_mode == SPICE_MOUSE_MODE_SERVER) {
@@ -892,9 +892,9 @@ int16_t SpiceGlibGlueScrollEvent(int16_t buttonState, int16_t isDown)
     SPICE_DEBUG("%s", __FUNCTION__);
 
     if (!d->inputs)
-        return true;
+        return TRUE;
     if (d->disable_inputs)
-        return true;
+        return TRUE;
 
     if (!isDown)
         button = SPICE_MOUSE_BUTTON_UP;
@@ -905,7 +905,7 @@ int16_t SpiceGlibGlueScrollEvent(int16_t buttonState, int16_t isDown)
                   button_mask_monoglue_to_spice(buttonState));
     spice_inputs_channel_button_release(d->inputs, button,
                 button_mask_monoglue_to_spice(buttonState));
-    return true;
+    return TRUE;
 }
 
 static void primary_create(SpiceChannel *channel,
@@ -974,7 +974,7 @@ gboolean copy_display_to_glue()
         return TRUE;
     }
 
-    STATIC_MUTEX_LOCK(d->glue_display_lock);
+    g_mutex_lock(&d->glue_display_lock);
     Color32 * src2_data = (Color32 *)d->data;
     Color32 * dst2_data = (Color32 *)d->glue_display_buffer;
     int maxI = d->height > (d->invalidate_y + d->invalidate_h)? d->height - d->invalidate_y : d->invalidate_h;
@@ -1005,7 +1005,7 @@ gboolean copy_display_to_glue()
     d->updatedDisplayBuffer = TRUE;
 
 
-    STATIC_MUTEX_UNLOCK(d->glue_display_lock);
+    g_mutex_unlock(&d->glue_display_lock);
     return FALSE;
 }
 
@@ -1136,7 +1136,7 @@ static void cursor_set(SpiceCursorChannel *channel,
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
     MonoGlueCursor *cursor = NULL;
 
-    STATIC_MUTEX_LOCK(d->cursor_lock);
+    g_mutex_lock(&d->cursor_lock);
 
     if (rgba != NULL) {
         cursor= monoglue_cursor_new_from_data(width, height, hot_x, hot_y, rgba);
@@ -1163,7 +1163,7 @@ static void cursor_set(SpiceCursorChannel *channel,
     (d->idCursor)++;
 
  end:
-    STATIC_MUTEX_UNLOCK(d->cursor_lock);
+    g_mutex_unlock(&d->cursor_lock);
 }
 
 static void cursor_move(SpiceCursorChannel *channel, gint x, gint y, gpointer data)
@@ -1174,7 +1174,7 @@ static void cursor_move(SpiceCursorChannel *channel, gint x, gint y, gpointer da
         __FUNCTION__, x, y, d->mouse_guest_x, d->mouse_guest_y);
 
 
-    STATIC_MUTEX_LOCK(d->cursor_lock);
+    g_mutex_lock(&d->cursor_lock);
 
     /* In server mode, we receive mouse location via cursor-channel */
     d->mouse_guest_x = x;
@@ -1193,7 +1193,7 @@ static void cursor_move(SpiceCursorChannel *channel, gint x, gint y, gpointer da
     }
     SPICE_DEBUG("%s exiting critical section",  __FUNCTION__);
 
-    STATIC_MUTEX_UNLOCK(d->cursor_lock);
+    g_mutex_unlock(&d->cursor_lock);
 }
 
 static void cursor_hide(SpiceCursorChannel *channel, gpointer data)
@@ -1201,7 +1201,7 @@ static void cursor_hide(SpiceCursorChannel *channel, gpointer data)
     SpiceDisplay *display = data;
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
 
-    STATIC_MUTEX_LOCK(d->cursor_lock);
+    g_mutex_lock(&d->cursor_lock);
     SPICE_DEBUG("cursor_hide()");
 
     if (d->show_cursor != NULL) /* then we are already hidden */
@@ -1211,7 +1211,7 @@ static void cursor_hide(SpiceCursorChannel *channel, gpointer data)
     d->show_cursor = d->mouse_cursor;
     d->mouse_cursor = get_blank_cursor();
  end:
-    STATIC_MUTEX_UNLOCK(d->cursor_lock);
+    g_mutex_unlock(&d->cursor_lock);
 }
 
 static void cursor_reset(SpiceCursorChannel *channel, gpointer data)
@@ -1219,7 +1219,7 @@ static void cursor_reset(SpiceCursorChannel *channel, gpointer data)
     SpiceDisplay *display = data;
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
 
-    STATIC_MUTEX_LOCK(d->cursor_lock);
+    g_mutex_lock(&d->cursor_lock);
     SPICE_DEBUG("%s",  __FUNCTION__);
 
     if (d->mouse_cursor) {
@@ -1231,7 +1231,7 @@ static void cursor_reset(SpiceCursorChannel *channel, gpointer data)
         d->show_cursor = NULL;
     }
 
-    STATIC_MUTEX_UNLOCK(d->cursor_lock);
+    g_mutex_unlock(&d->cursor_lock);
     //gdk_window_set_cursor(window, NULL);
 }
 
@@ -1257,17 +1257,17 @@ int16_t SpiceGlibGlueGetCursor(uint32_t previousCursorId,
 
     switch (d->mouse_mode) {
         case SPICE_MOUSE_MODE_CLIENT:
-        *showInClient=true;
+        *showInClient=TRUE;
         break;
         case SPICE_MOUSE_MODE_SERVER:
-        *showInClient=false;
+        *showInClient=FALSE;
         break;
         default:
         g_warn_if_reached();
         break;
     }
 
-    STATIC_MUTEX_LOCK(d->cursor_lock);
+    g_mutex_lock(&d->cursor_lock);
 
     if (*showInClient && previousCursorId!=d->idCursor) {
         SPICE_DEBUG("%s : Changing cursor ", __FUNCTION__);
@@ -1285,7 +1285,7 @@ int16_t SpiceGlibGlueGetCursor(uint32_t previousCursorId,
         }
     }
 
-    STATIC_MUTEX_UNLOCK(d->cursor_lock);
+    g_mutex_unlock(&d->cursor_lock);
     *currentCursorId = d->idCursor;
     return 0;
 }
@@ -1356,7 +1356,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
                       G_CALLBACK(update_mouse_mode), display, 0);
         update_mouse_mode(channel, display);
         if (d->display) {
-            spice_main_set_display_enabled(d->main, get_display_id(display), TRUE);
+            spice_main_channel_update_display_enabled(d->main, get_display_id(display), TRUE, TRUE);
         }
 
 #ifdef USE_CLIPBOARD
@@ -1401,7 +1401,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
             mark(display, primary.marked);
         }
         spice_channel_connect(channel);
-        spice_main_set_display_enabled(d->main, get_display_id(display), TRUE);
+        spice_main_channel_update_display_enabled(d->main, get_display_id(display), TRUE, TRUE);
         return;
     }
 
@@ -1627,7 +1627,7 @@ void spice_display_set_display_buffer(SpiceDisplay *display, uint32_t *display_b
  *  IN:
  *  OUT:
  * Returns true if current buffer has changed and has not been copied, since
- * the last call to SpiceGlibGlueLockDisplayBuffer (not to this function), false otherwise.
+ * the last call to SpiceGlibGlueLockDisplayBuffer (not to this function), FALSE otherwise.
  **/
 int16_t spice_display_is_display_buffer_updated(SpiceDisplay *display, int32_t width, int32_t height)
 {
@@ -1642,12 +1642,12 @@ int16_t spice_display_is_display_buffer_updated(SpiceDisplay *display, int32_t w
  *  IN: don't care
  *  OUT: size of display used by the spice-client-lib: Real guest display, and what the
  * Returns true if current buffer has changed and has not been copied, since
- * the last call to SpiceGlibGlueLockDisplayBuffer, false otherwise.
+ * the last call to SpiceGlibGlueLockDisplayBuffer, FALSE otherwise.
  **/
 int16_t spice_display_lock_display_buffer(SpiceDisplay *display, int32_t *width, int32_t *height)
 {
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
-    STATIC_MUTEX_LOCK(d->glue_display_lock);
+    g_mutex_lock(&d->glue_display_lock);
 
     *width = d->width;
     *height = d->height;
@@ -1662,7 +1662,7 @@ int16_t spice_display_lock_display_buffer(SpiceDisplay *display, int32_t *width,
 void spice_display_unlock_display_buffer(SpiceDisplay *display)
 {
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
-    STATIC_MUTEX_UNLOCK(d->glue_display_lock);
+    g_mutex_unlock(&d->glue_display_lock);
 }
 
 int16_t spice_display_get_cursor_position(SpiceDisplay *display, int32_t* x, int32_t* y)

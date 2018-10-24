@@ -21,8 +21,7 @@
 
 #include "spice-client.h"
 
-#include <spice-gtk/spice-grabsequence.h>
-#include <spice-gtk/spice-util.h>
+#include <spice-util.h>
 
 
 G_BEGIN_DECLS
