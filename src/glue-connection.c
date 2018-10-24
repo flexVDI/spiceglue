@@ -150,8 +150,6 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 
 static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer data)
 {
-    SPICE_DEBUG("channel_destroy called");
-
     SpiceConnection *conn = data;
     int id;
     int channel_type;
@@ -159,6 +157,11 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
     g_object_get(channel, "channel-id", &id, "channel-type", &channel_type, NULL);
     const char* channel_name = spice_channel_type_to_string(channel_type);
     SPICE_DEBUG("destroy %s channel (#%d)", channel_name, id);
+
+    conn->channels--;
+    SPICE_DEBUG("Number of channels remaining: %d", conn->channels);
+
+    g_signal_handlers_disconnect_by_data(channel, data);
 
     if (SPICE_IS_MAIN_CHANNEL(channel)) {
         conn->main = NULL;
@@ -176,9 +179,7 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
         conn->audio = NULL;
     }
 
-    conn->channels--;
     if (conn->channels > 0) {
-        SPICE_DEBUG("Number of channels remaining: %d", conn->channels);
         return;
     }
 
