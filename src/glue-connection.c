@@ -21,6 +21,7 @@
 #include "glue-connection.h"
 
 struct _SpiceConnection {
+    GObject          parent;
     SpiceSession     *session;
     SpiceMainChannel *main;
     SpiceDisplay     *display;
