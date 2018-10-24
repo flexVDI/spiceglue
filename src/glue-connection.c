@@ -43,6 +43,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data);
 static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer data);
 
 static void spice_connection_init(SpiceConnection * conn) {
+    SPICE_DEBUG("Initializing connection %p", conn);
     conn->session = spice_session_new();
 
     g_signal_connect(conn->session, "channel-new",
@@ -54,6 +55,8 @@ static void spice_connection_init(SpiceConnection * conn) {
 
 static void spice_connection_dispose(GObject * obj) {
     SpiceConnection * conn = SPICE_CONNECTION(obj);
+    SPICE_DEBUG("Disposing connection %p", conn);
+    g_warn_if_fail(conn->channels > 0);
     g_clear_object(&conn->session);
     g_clear_object(&conn->display);
     G_OBJECT_CLASS(spice_connection_parent_class)->dispose(obj);
@@ -64,84 +67,43 @@ SpiceConnection *spice_connection_new(void)
     return SPICE_CONNECTION(g_object_new(SPICE_CONNECTION_TYPE, NULL));
 }
 
-static void main_channel_event(SpiceChannel *channel, SpiceChannelEvent event,
-                               gpointer data)
+static void channel_event(SpiceChannel *channel, SpiceChannelEvent event,
+				  gpointer data)
 {
+    int channel_type;
+    g_object_get(channel, "channel-type", &channel_type, NULL);
+    const char* channel_name = spice_channel_type_to_string(channel_type);
+
     SpiceConnection *conn = SPICE_CONNECTION(data);
 
     switch (event) {
     case SPICE_CHANNEL_OPENED:
-    	g_message("main channel: opened");
+        SPICE_DEBUG("%s channel: opened", channel_name);
         break;
     case SPICE_CHANNEL_SWITCHING:
-        g_message("main channel: switching host");
+        SPICE_DEBUG("%s channel: switching host", channel_name);
         break;
     case SPICE_CHANNEL_CLOSED:
-        /* this event is only sent if the channel was succesfully opened before */
-        g_message("main channel: closed");
+        SPICE_DEBUG("%s channel closed", channel_name);
         spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_IO:
+        g_warning("%s channel: input-output error", channel_name);
         spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_TLS:
     case SPICE_CHANNEL_ERROR_LINK:
     case SPICE_CHANNEL_ERROR_CONNECT:
-        g_message("main channel: failed to connect");
+        g_warning("%s channel: failed to connect", channel_name);
         spice_connection_disconnect(conn);
         break;
     case SPICE_CHANNEL_ERROR_AUTH:
-        g_warning("main channel: auth failure (wrong password?)");
+        g_warning("%s channel: auth failure (wrong password?)", channel_name);
         spice_connection_disconnect(conn);
         break;
     default:
         /* TODO: more sophisticated error handling */
-        g_warning("unknown main channel event: %d", event);
-        break;
-    }
-}
-
-static void generic_channel_event(SpiceChannel *channel, SpiceChannelEvent event,
-				  gpointer data)
-{
-    // TODO: Improve this long chain of if. There must be a function for doing this
-    char* channel_name= "unknown";
-    if (SPICE_IS_MAIN_CHANNEL(channel)) {
-	channel_name="main";
-    } else if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-	channel_name="display";
-    } else if (SPICE_IS_INPUTS_CHANNEL(channel)) {
-	channel_name="inputs";
-    } else if (SPICE_IS_PLAYBACK_CHANNEL(channel)) {
-    	channel_name="audio";
-    } else if (SPICE_IS_USBREDIR_CHANNEL(channel)) {
-    	channel_name="usbredir";
-    } else if (SPICE_IS_PORT_CHANNEL(channel)) {
-    	channel_name="port";
-    } else if (SPICE_IS_RECORD_CHANNEL (channel)) {
-	channel_name="record";
-    }
-
-    SpiceConnection *conn = SPICE_CONNECTION(data);
-
-    switch (event) {
-
-    case SPICE_CHANNEL_CLOSED:
-        g_warning("%s channel closed", channel_name);
-        spice_connection_disconnect(conn);
-        break;
-    case SPICE_CHANNEL_ERROR_IO:
-        spice_connection_disconnect(conn);
-        break;
-    case SPICE_CHANNEL_ERROR_TLS:
-    case SPICE_CHANNEL_ERROR_LINK:
-    case SPICE_CHANNEL_ERROR_CONNECT:
-        g_message("%s channel: failed to connect", channel_name);
-        spice_connection_disconnect(conn);
-        break;
-    default:
-        /* TODO: more sophisticated error handling */
-        g_warning("%s channel event: %d", channel_name, event);
+        g_warning("unknown %s channel event: %d", channel_name, event);
         break;
     }
 }
@@ -150,50 +112,39 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 {
     SpiceConnection *conn = data;
     int id;
+    int channel_type;
 
-    g_object_get(channel, "channel-id", &id, NULL);
+    g_object_get(channel, "channel-id", &id, "channel-type", &channel_type, NULL);
+    const char* channel_name = spice_channel_type_to_string(channel_type);
     conn->channels++;
-    SPICE_DEBUG("new channel (#%d)", id);
+    SPICE_DEBUG("new %s channel (#%d)", channel_name, id);
 
     if (SPICE_IS_MAIN_CHANNEL(channel)) {
-        SPICE_DEBUG("new main channel");
         conn->main = SPICE_MAIN_CHANNEL(channel);
-        g_signal_connect(channel, "channel-event",
-                         G_CALLBACK(main_channel_event), conn);
     }
 
-    if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
+    else if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
         if (id > 0) {
             g_warning("Only one display channel supported!");
             return;
         }
         if (conn->display != NULL)
             return;
-        SPICE_DEBUG("new display channel (#%d)", id);
         conn->display = spice_display_new(conn->session, id);
-
-        g_signal_connect(channel, "channel-event",
-                         G_CALLBACK(generic_channel_event), conn);
-
-        spice_channel_connect(channel);
     }
 
-    if (SPICE_IS_INPUTS_CHANNEL(channel)) {
-        SPICE_DEBUG("new inputs channel");
-        g_signal_connect(channel, "channel-event",
-                         G_CALLBACK(generic_channel_event), conn);
-    }
-
-    if (conn->enable_sound && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
-        SPICE_DEBUG("new audio channel");
+    else if (conn->enable_sound && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
         conn->audio = spice_audio_get(s, NULL);
-        g_signal_connect(channel, "channel-event",
-                         G_CALLBACK(generic_channel_event), conn);
     }
 
-    if (SPICE_IS_PORT_CHANNEL(channel)) {
-        spice_channel_connect(channel);
+    else if (!SPICE_IS_INPUTS_CHANNEL(channel) &&
+             !SPICE_IS_PORT_CHANNEL(channel)) {
+        SPICE_DEBUG("Unsupported channel type %s", channel_name);
+        return;
     }
+
+    spice_channel_connect(channel);
+    g_signal_connect(channel, "channel-event", G_CALLBACK(channel_event), conn);
 }
 
 static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer data)
@@ -202,10 +153,13 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
 
     SpiceConnection *conn = data;
     int id;
+    int channel_type;
 
-    g_object_get(channel, "channel-id", &id, NULL);
+    g_object_get(channel, "channel-id", &id, "channel-type", &channel_type, NULL);
+    const char* channel_name = spice_channel_type_to_string(channel_type);
+    SPICE_DEBUG("destroy %s channel (#%d)", channel_name, id);
+
     if (SPICE_IS_MAIN_CHANNEL(channel)) {
-        SPICE_DEBUG("zap main channel");
         conn->main = NULL;
     }
 
@@ -214,17 +168,16 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
             return;
         if (conn->display == NULL)
             return;
-        SPICE_DEBUG("zap display channel (#%d)", id);
         g_clear_object(&conn->display);
     }
 
     if (conn->enable_sound && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
-        SPICE_DEBUG("zap audio channel");
+        conn->audio = NULL;
     }
 
     conn->channels--;
     if (conn->channels > 0) {
-        SPICE_DEBUG("Number of channels: %d", conn->channels);
+        SPICE_DEBUG("Number of channels remaining: %d", conn->channels);
         return;
     }
 
@@ -234,6 +187,7 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
 void spice_connection_connect(SpiceConnection *conn)
 {
     conn->disconnecting = FALSE;
+    SPICE_DEBUG("Connect Spice connection %p", conn);
     spice_session_connect(conn->session);
 }
 
@@ -242,6 +196,7 @@ void spice_connection_disconnect(SpiceConnection *conn)
     if (conn->disconnecting)
         return;
     conn->disconnecting = TRUE;
+    SPICE_DEBUG("Disconnect Spice connection %p", conn);
     spice_session_disconnect(conn->session);
 }
 
