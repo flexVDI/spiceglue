@@ -260,9 +260,7 @@ void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
 				   int32_t width, int32_t height)
 {
     SPICE_DEBUG("SpiceGlibGlueSetDisplayBuffer");
-    if (global_display() != NULL) {
-        spice_display_set_display_buffer(global_display(), display_buffer, width, height);
-    }
+    spice_display_set_display_buffer(display_buffer, width, height);
 }
 
 /**
@@ -288,16 +286,12 @@ int16_t SpiceGlibGlueIsDisplayBufferUpdated(int32_t width, int32_t height)
  **/
 int16_t SpiceGlibGlueLockDisplayBuffer(int32_t *width, int32_t *height)
 {
-    if (global_display() == NULL) {
-        *width = *height = 0;
-        return 0;
-    } else return spice_display_lock_display_buffer(global_display(), width, height);
+    return spice_display_lock_display_buffer(width, height);
 }
 
 void SpiceGlibGlueUnlockDisplayBuffer()
 {
-    if (global_display() != NULL)
-        spice_display_unlock_display_buffer(global_display());
+    spice_display_unlock_display_buffer();
 }
 
 int16_t SpiceGlibGlueGetCursorPosition(int32_t* x, int32_t* y)

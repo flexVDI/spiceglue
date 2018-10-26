@@ -42,6 +42,16 @@
 #include "glue-clipboard.h"
 
 
+static struct {
+    uint32_t *buffer;
+    int32_t  width;
+    int32_t  height;
+} glue_buffer;
+
+/* MUTEX to ensure that glue_buffer is not freed while it's being written */
+GMutex glue_display_lock;
+
+
 G_DEFINE_TYPE(SpiceDisplay, spice_display, SPICE_TYPE_CHANNEL);
 
 /* Signals */
@@ -76,7 +86,7 @@ static void sync_keyboard_lock_modifiers(SpiceDisplay *display);
 static void try_mouse_ungrab(SpiceDisplay *display);
 
 
-int16_t SpiceGlibGlueOnGainFocus();
+static int on_gain_focus(SpiceDisplay *display);
 
 static gint get_display_id(SpiceDisplay *display)
 {
@@ -185,17 +195,16 @@ static void spice_display_init(SpiceDisplay *display)
     SpiceDisplayPrivate *d;
 
     d = display->priv = SPICE_DISPLAY_GET_PRIVATE(display);
-    SPICE_DEBUG("%s: setting global_display to %p, private to %p", __FUNCTION__, global_display(), d);
+    SPICE_DEBUG("%s: setting global_display to %p, private to %p", __FUNCTION__, display, d);
     memset(d, 0, sizeof(*d));
     d->mouse_last_x = -1;
     d->mouse_last_y = -1;
     d->monitor_ready = TRUE;
 
     d->resize_guest_enable=TRUE;
-    SpiceGlibGlueOnGainFocus();
+    on_gain_focus(display);
 
     g_mutex_init(&d->cursor_lock);
-    g_mutex_init(&d->glue_display_lock);
 }
 
 /* ---------------------------------------------------------------- */
@@ -786,17 +795,18 @@ static void update_keyboard_focus(SpiceDisplay *display, gboolean state)
 
 int16_t SpiceGlibGlueOnGainFocus()
 {
-    SpiceDisplay *display;
-    SpiceDisplayPrivate *d;
-
     SPICE_DEBUG("%s", __FUNCTION__);
     if (global_display() == NULL) {
         SPICE_DEBUG("%s ERROR pointer global_display() == NULL", __FUNCTION__);
         return -1;
     }
 
-    display = global_display();
-    d = SPICE_DISPLAY_GET_PRIVATE(display);
+    return on_gain_focus(global_display());
+}
+
+static int on_gain_focus(SpiceDisplay *display)
+{
+    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
 
     if (d == NULL) {
         SPICE_DEBUG("%s ERROR pointer d->data == NULL", __FUNCTION__);
@@ -964,38 +974,42 @@ gboolean copy_display_to_glue()
         return TRUE;
     }
 
-    if (d->glue_width < d->width || d->glue_height < d->height) {
-        SPICE_DEBUG("glue display dimensions are too small");
-        return TRUE;
-    }
+    g_mutex_lock(&glue_display_lock);
 
-    if (d->glue_display_buffer == NULL) {
+    if (glue_buffer.buffer == NULL) {
         SPICE_DEBUG("glue_display_buffer is not initialized yet");
+        g_mutex_unlock(&glue_display_lock);
         return TRUE;
     }
 
-    g_mutex_lock(&d->glue_display_lock);
+    if (glue_buffer.width < d->width || glue_buffer.height < d->height) {
+        SPICE_DEBUG("glue display dimensions are too small (%dx%d vs %dx%d)",
+                    glue_buffer.width, glue_buffer.height, d->width, d->height);
+        g_mutex_unlock(&glue_display_lock);
+        return TRUE;
+    }
+
     Color32 * src2_data = (Color32 *)d->data;
-    Color32 * dst2_data = (Color32 *)d->glue_display_buffer;
-    int maxI = d->height > (d->invalidate_y + d->invalidate_h)? d->height - d->invalidate_y : d->invalidate_h;
-    int maxJ = d->width  > (d->invalidate_x + d->invalidate_w)? d->width : (d->invalidate_x + d->invalidate_w);
+    Color32 * dst2_data = (Color32 *)glue_buffer.buffer;
+    int maxI = d->height > (d->invalidate_y + d->invalidate_h)? d->invalidate_h : d->height - d->invalidate_y;
+    int maxJ = d->width  > (d->invalidate_x + d->invalidate_w)? d->invalidate_x + d->invalidate_w : d->width;
     src2_data += d->width * d->invalidate_y;
 #if INVERSE_BUFFER
-    int tmp = (d->height - d->invalidate_y - 1) * d->width;
+    int tmp = (glue_buffer.height - d->invalidate_y - 1) * glue_buffer.width;
     dst2_data += tmp;
 #else
-    dst2_data += d->width * d->invalidate_y;
+    dst2_data += glue_buffer.width * d->invalidate_y;
 #endif
 
     int i, j;
     for (i = 0 ; i < maxI; i++) {
         for (j = d->invalidate_x; j < maxJ; j ++) {
-            dst2_data[j]=ARGBtoABGR(src2_data[j]);
+            dst2_data[j] = ARGBtoABGR(src2_data[j]);
         }
 #if INVERSE_BUFFER
-        dst2_data-= d->width;
+        dst2_data -= glue_buffer.width;
 #else
-        dst2_data+= d->width;
+        dst2_data += glue_buffer.width;
 #endif
         src2_data += d->width;
     }
@@ -1005,7 +1019,7 @@ gboolean copy_display_to_glue()
     d->updatedDisplayBuffer = TRUE;
 
 
-    g_mutex_unlock(&d->glue_display_lock);
+    g_mutex_unlock(&glue_display_lock);
     return FALSE;
 }
 
@@ -1038,7 +1052,7 @@ static void invalidate(SpiceChannel *channel,
         if ((y + h) > (invalidate_y0 + d->invalidate_h))
         d->invalidate_h = (y + h) - d->invalidate_y;
 
-        if (d->glue_display_buffer == NULL) {
+        if (glue_buffer.buffer == NULL) {
             SPICE_DEBUG("glue_display_buffer not yet initialized");
             return;
         }
@@ -1073,7 +1087,7 @@ static void update_ready(SpiceDisplay *display)
         gtk_widget_queue_draw(GTK_WIDGET(display)*/);
 
     d->ready = ready;
-    g_object_notify(G_OBJECT(display), "ready");
+    //g_object_notify(G_OBJECT(display), "ready");
 }
 
 static void mark(SpiceDisplay *display, gint mark)
@@ -1347,7 +1361,6 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
     int id;
 
     g_object_get(channel, "channel-id", &id, NULL);
-    SPICE_DEBUG("channel id: %d ", id);
 
     if (SPICE_IS_MAIN_CHANNEL(channel)) {
         //SPICE_DEBUG(" channel_new: MAIN_CHANEL del display %d ", get_display_id(display));
@@ -1606,19 +1619,18 @@ static void sync_keyboard_lock_modifiers(SpiceDisplay *display)
 #endif // HAVE_X11_XKBLIB_H
 
 
-void spice_display_set_display_buffer(SpiceDisplay *display, uint32_t *display_buffer,
-				   int32_t width, int32_t height)
+void spice_display_set_display_buffer(uint32_t *display_buffer, int32_t width, int32_t height)
 {
-    SPICE_DEBUG("SpiceGlibGlueSetDisplayBuffer");
-    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
+    glue_buffer.buffer = display_buffer;
+    glue_buffer.width = width;
+    glue_buffer.height = height;
 
-    d->glue_display_buffer = display_buffer;
-    d->glue_width = width;
-    d->glue_height = height;
-
-    if (!d->copy_scheduled) {
-        g_timeout_add(30, (GSourceFunc) copy_display_to_glue, NULL);
-        d->copy_scheduled = 1;
+    if (global_display() != NULL) {
+        SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display());
+        if (!d->copy_scheduled) {
+            g_timeout_add(30, (GSourceFunc) copy_display_to_glue, NULL);
+            d->copy_scheduled = 1;
+        }
     }
 }
 
@@ -1644,10 +1656,15 @@ int16_t spice_display_is_display_buffer_updated(SpiceDisplay *display, int32_t w
  * Returns true if current buffer has changed and has not been copied, since
  * the last call to SpiceGlibGlueLockDisplayBuffer, FALSE otherwise.
  **/
-int16_t spice_display_lock_display_buffer(SpiceDisplay *display, int32_t *width, int32_t *height)
+int16_t spice_display_lock_display_buffer(int32_t *width, int32_t *height)
 {
-    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
-    g_mutex_lock(&d->glue_display_lock);
+    g_mutex_lock(&glue_display_lock);
+    if (global_display() == NULL) {
+        *width = *height = 0;
+        return 0;
+    }
+
+    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display());
 
     *width = d->width;
     *height = d->height;
@@ -1659,10 +1676,9 @@ int16_t spice_display_lock_display_buffer(SpiceDisplay *display, int32_t *width,
     return 0;
 }
 
-void spice_display_unlock_display_buffer(SpiceDisplay *display)
+void spice_display_unlock_display_buffer()
 {
-    SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
-    g_mutex_unlock(&d->glue_display_lock);
+    g_mutex_unlock(&glue_display_lock);
 }
 
 int16_t spice_display_get_cursor_position(SpiceDisplay *display, int32_t* x, int32_t* y)
