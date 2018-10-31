@@ -1034,31 +1034,26 @@ static void invalidate(SpiceChannel *channel,
 {
     if (global_display() == NULL) return;
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display());
-    //char *cdata = (char *)d->data;
 
     if (d->invalidated == TRUE) {
-        /*SPICE_DEBUG("*** 0000 PRE inval x: %d, w: %d, y: %d, h: %d",
-          invalidate_x, invalidate_w, invalidate_y, invalidate_h );
-          SPICE_DEBUG("*** **** PRE nuevo x: %d, w: %d, y: %d, h: %d",
-          x, w, y, h );*/
         gint invalidate_x0 = d->invalidate_x;
         gint invalidate_y0 = d->invalidate_y;
         if (x < d->invalidate_x)
-        d->invalidate_x = x;
+            d->invalidate_x = x;
         if (y < d->invalidate_y)
-        d->invalidate_y = y;
+            d->invalidate_y = y;
         if ((x + w) > (invalidate_x0 + d->invalidate_w))
-        d->invalidate_w = (x + w) - d->invalidate_x;
+            d->invalidate_w = (x + w) - d->invalidate_x;
+        else d->invalidate_w = (invalidate_x0 + d->invalidate_w) - d->invalidate_x;
         if ((y + h) > (invalidate_y0 + d->invalidate_h))
-        d->invalidate_h = (y + h) - d->invalidate_y;
+            d->invalidate_h = (y + h) - d->invalidate_y;
+        else d->invalidate_h = (invalidate_y0 + d->invalidate_h) - d->invalidate_y;
 
         if (glue_buffer.buffer == NULL) {
             SPICE_DEBUG("glue_display_buffer not yet initialized");
             return;
         }
 
-    /*SPICE_DEBUG("*** **** POST inval x: %d, w: %d, y: %d, h: %d, &x: %xd",
-      invalidate_x, invalidate_w, invalidate_y, invalidate_h, &invalidate_x );*/
     } else {
         d->invalidated = TRUE;
         d->invalidate_x = x;
