@@ -21,6 +21,9 @@
 
 #ifdef ANDROID
 #include <android/log.h>
+#else
+#include <stdlib.h>
+#include <stdio.h>
 #endif
 
 #include "glue-service.h"
