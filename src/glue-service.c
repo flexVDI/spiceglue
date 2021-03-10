@@ -316,7 +316,7 @@ static gboolean sendPowerEvent1(int16_t powerEvent)
 {
     if (mainconn != NULL)
         spice_connection_power_event_request(mainconn, powerEvent);
-	return FALSE;
+    return FALSE;
 }
 
 /**
