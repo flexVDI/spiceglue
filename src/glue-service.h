@@ -18,3 +18,11 @@
 #include "glue-spice-widget.h"
 
 SpiceDisplay* global_display();
+int16_t SpiceGlibGlue_Connect(char* host,
+			      char* port, char* tls_port, char* ws_port,
+			      char* password,
+			      char* ca_file, char* cert_subj,
+			      int32_t enable_sound);
+void SpiceGlibGlue_Disconnect(void);
+void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel);
+void SpiceGlibGlue_MainLoop(void);
