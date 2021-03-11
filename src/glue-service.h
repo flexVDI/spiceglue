@@ -24,5 +24,6 @@ int16_t SpiceGlibGlue_Connect(char* host,
 			      char* ca_file, char* cert_subj,
 			      int32_t enable_sound);
 void SpiceGlibGlue_Disconnect(void);
+void SpiceGlibGlue_InitializeLoggingCallback(int32_t verbosityLevel, void (*cl_log_callback)(int8_t *));
 void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel);
 void SpiceGlibGlue_MainLoop(void);

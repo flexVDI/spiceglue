@@ -245,6 +245,8 @@ int spice_connection_get_num_channels(SpiceConnection *conn)
 
 void spice_connection_power_event_request(SpiceConnection *conn, int powerEvent)
 {
-//    if (conn->main != NULL)
-//        spice_main_power_event_request(conn->main, powerEvent);
+#ifndef SPICEGLUE_DISABLE_POWER
+    if (conn->main != NULL)
+        spice_main_power_event_request(conn->main, powerEvent);
+#endif
 }

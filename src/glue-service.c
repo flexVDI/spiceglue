@@ -47,6 +47,7 @@
 #endif
 
 static int32_t logVerbosity;
+void (*log_callback)(int8_t *);
 
 #ifdef ANDROID
 void androidLog (const gchar *log_domain, GLogLevelFlags log_level,
@@ -157,18 +158,26 @@ void logHandler (const gchar *log_domain, GLogLevelFlags log_level,
         logToFile(log_domain, log_level, message, user_data);
 #endif
     }
+    if (log_callback != NULL) {
+        log_callback((int8_t *)message);
+    }
 }
 
-void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel)
+void SpiceGlibGlue_InitializeLoggingCallback(int32_t verbosityLevel, void (*cl_log_callback)(int8_t *))
 {
     SPICE_DEBUG("SpiceGlibGlue_InitializeLogging() ini");
     logVerbosity = verbosityLevel;
+    log_callback = cl_log_callback;
 
     if (verbosityLevel >= 3) {
         spice_util_set_debug(TRUE);
     }
     g_log_set_default_handler (logHandler, NULL);
     SPICE_DEBUG("Logging initialized.");
+}
+
+void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel) {
+    SpiceGlibGlue_InitializeLoggingCallback(verbosityLevel, NULL);
 }
 
 static SpiceConnection *mainconn = NULL;
