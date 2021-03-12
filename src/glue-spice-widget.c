@@ -1,5 +1,6 @@
 /**
  * Copyright (C) 2016 flexVDI (Flexible Software Solutions S.L.)
+ * Copyright (C) 2013 Iordan Iordanov
  * Copyright (C) 2010 Red Hat, Inc.
  *
  * This library is free software; you can redistribute it and/or
