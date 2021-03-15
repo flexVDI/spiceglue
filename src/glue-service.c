@@ -164,21 +164,16 @@ void logHandler (const gchar *log_domain, GLogLevelFlags log_level,
     }
 }
 
-void SpiceGlibGlue_InitializeLoggingCallback(int32_t verbosityLevel, void (*cl_log_callback)(int8_t *))
+void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel)
 {
     SPICE_DEBUG("SpiceGlibGlue_InitializeLogging() ini");
     logVerbosity = verbosityLevel;
-    log_callback = cl_log_callback;
 
     if (verbosityLevel >= 3) {
         spice_util_set_debug(TRUE);
     }
     g_log_set_default_handler (logHandler, NULL);
     SPICE_DEBUG("Logging initialized.");
-}
-
-void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel) {
-    SpiceGlibGlue_InitializeLoggingCallback(verbosityLevel, NULL);
 }
 
 static SpiceConnection *mainconn = NULL;
@@ -339,4 +334,27 @@ void SpiceGlibGlue_SendPowerEvent(int16_t powerEvent) {
     g_timeout_add_full(G_PRIORITY_HIGH, 0,
                        (GSourceFunc)sendPowerEvent1,
                        (gpointer)powerEvent, NULL);
+}
+
+void SpiceGlibGlue_SetLogCallback(void (*cl_log_callback)(int8_t *)) {
+    SPICE_DEBUG("SpiceGlibGlue_SetLogCallback()");
+    log_callback = cl_log_callback;
+}
+
+void SpiceGlibGlue_SetBufferResizeCallback(void (*buffer_resize_callback)(int, int, int)) {
+    SPICE_DEBUG("SpiceGlibGlue_SetBufferResizeCallback");
+    if (mainconn != NULL)
+        spice_connection_set_buffer_resize_callback(mainconn, buffer_resize_callback);
+}
+
+void SpiceGlibGlue_SetBufferUpdateCallback(void (*buffer_update_callback)(int, int, int, int)) {
+    SPICE_DEBUG("SpiceGlibGlue_SetBufferUpdateCallback");
+    if (mainconn != NULL)
+        spice_connection_set_buffer_update_callback(mainconn, buffer_update_callback);
+}
+
+void SpiceGlibGlue_SetBufferDisconnectCallback(void (*disconnect_callback)(void)) {
+    SPICE_DEBUG("SpiceGlibGlue_SetBufferDisconnectCallback");
+    if (mainconn != NULL)
+        spice_connection_set_disconnect_callback(mainconn, disconnect_callback);
 }

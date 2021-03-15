@@ -65,19 +65,36 @@ typedef enum {
   SPICE_DISPLAY_KEY_EVENT_CLICK = 3,
 } SpiceDisplayKeyEvent;
 
+typedef struct _SpiceGlibGlueCursorData SpiceGlibGlueCursorData;
+
 GType spice_display_get_type(void);
 
 SpiceDisplay* spice_display_new(SpiceSession *session, int id);
 void send_key(SpiceDisplay *display, int scancode, int down);
 
-gboolean copy_display_to_glue();
+gboolean copy_display_to_glue(void);
 void spice_display_set_display_buffer(uint32_t *display_buffer,
 				   int32_t width, int32_t height);
 int16_t spice_display_is_display_buffer_updated(SpiceDisplay *display, int32_t width, int32_t height);
 int16_t spice_display_lock_display_buffer(int32_t *width, int32_t *height);
-void spice_display_unlock_display_buffer();
+void spice_display_unlock_display_buffer(void);
 int16_t spice_display_get_cursor_position(SpiceDisplay *display, int32_t* x, int32_t* y);
 int32_t spice_display_key_event(SpiceDisplay *display, int16_t isDown, int32_t hardware_keycode);
+
+void set_buffer_resize_callback(SpiceDisplay *display, void (*buffer_resize_callback)(int, int, int));
+void set_buffer_update_callback(SpiceDisplay *display, void (*buffer_update_callback)(int, int, int, int));
+
+int16_t SpiceGlibGlueButtonEvent(int32_t eventX, int32_t eventY,
+                                 int16_t buttonId, int16_t buttonState, int16_t isDown);
+int16_t SpiceGlibGlueMotionEvent(int32_t eventX, int32_t eventY, int16_t buttonState);
+int16_t SpiceGlibGlueOnGainFocus(void);
+int16_t SpiceGlibGlueOnLoseFocus(void);
+int16_t SpiceGlibGlueScrollEvent(int16_t buttonState, int16_t isDown);
+int16_t SpiceGlibGlueGetCursor(uint32_t previousCursorId,
+                               uint32_t* currentCursorId,
+                               uint32_t* showInClient,
+                               SpiceGlibGlueCursorData* cursor,
+                               int32_t* dstRgba);
 
 G_END_DECLS
 

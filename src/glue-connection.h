@@ -44,5 +44,11 @@ void spice_connection_disconnect(SpiceConnection *conn);
 SpiceDisplay *spice_connection_get_display(SpiceConnection *conn);
 int spice_connection_get_num_channels(SpiceConnection *conn);
 void spice_connection_power_event_request(SpiceConnection *conn, int powerEvent);
+void spice_connection_set_buffer_resize_callback(SpiceConnection *conn,
+             void (*buffer_resize_callback)(int, int, int));
+void spice_connection_set_buffer_update_callback(SpiceConnection *conn,
+             void (*buffer_update_callback)(int, int, int, int));
+void spice_connection_set_disconnect_callback(SpiceConnection *conn,
+             void (*disconnect_callback)(void));
 
 #endif /* _ANDROID_SPICY_H */

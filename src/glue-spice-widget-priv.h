@@ -121,6 +121,9 @@ struct _SpiceDisplayPrivate {
     int                     copy_scheduled;
 
     gboolean                updatedDisplayBuffer;
+
+    void (*buffer_resize_callback)(int, int, int);
+    void (*buffer_update_callback)(int, int, int, int);
 };
 
 G_END_DECLS

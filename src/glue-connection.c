@@ -30,6 +30,9 @@ struct _SpiceConnection {
     int              channels;
     int              disconnecting;
     gboolean         enable_sound;
+    void (*buffer_resize_callback)(int, int, int);
+    void (*buffer_update_callback)(int, int, int, int);
+    void (*disconnect_callback)(void);
 };
 
 G_DEFINE_TYPE(SpiceConnection, spice_connection, G_TYPE_OBJECT);
@@ -133,6 +136,8 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
         if (conn->display != NULL)
             return;
         conn->display = spice_display_new(conn->session, id);
+        set_buffer_resize_callback(conn->display, conn->buffer_resize_callback);
+        set_buffer_update_callback(conn->display, conn->buffer_update_callback);
     }
 
     else if (conn->enable_sound && SPICE_IS_PLAYBACK_CHANNEL(channel)) {
@@ -196,11 +201,13 @@ void spice_connection_connect(SpiceConnection *conn)
 
 void spice_connection_disconnect(SpiceConnection *conn)
 {
-    if (conn->disconnecting)
+    if (conn == NULL || conn->disconnecting)
         return;
     conn->disconnecting = TRUE;
     SPICE_DEBUG("Disconnect Spice connection %p", conn);
     spice_session_disconnect(conn->session);
+    if (conn->disconnect_callback != NULL)
+        conn->disconnect_callback();
 }
 
 /* Saver config parameters to session Object*/
@@ -250,4 +257,22 @@ void spice_connection_power_event_request(SpiceConnection *conn, int powerEvent)
     if (conn->main != NULL)
         spice_main_power_event_request(conn->main, powerEvent);
 #endif
+}
+
+void spice_connection_set_buffer_resize_callback(SpiceConnection *conn,
+             void (*buffer_resize_callback)(int, int, int)) {
+    SPICE_DEBUG("spice_connection_set_buffer_resize_callback");
+    conn->buffer_resize_callback = buffer_resize_callback;
+}
+
+void spice_connection_set_buffer_update_callback(SpiceConnection *conn,
+             void (*buffer_update_callback)(int, int, int, int)) {
+    SPICE_DEBUG("spice_connection_set_buffer_update_callback");
+    conn->buffer_update_callback = buffer_update_callback;
+}
+
+void spice_connection_set_disconnect_callback(SpiceConnection *conn,
+             void (*disconnect_callback)(void)) {
+    SPICE_DEBUG("spice_connection_set_disconnect_callback");
+    conn->disconnect_callback = disconnect_callback;
 }

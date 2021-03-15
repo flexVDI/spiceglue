@@ -74,7 +74,9 @@ static HWND win32_window = NULL;
 #elif __APPLE__
     #include "TargetConditionals.h"
     #if TARGET_OS_IPHONE
-    #define INVERSE_BUFFER 1
+        #ifndef TARGET_OS_MACCATALYST
+        #define INVERSE_BUFFER 1
+        #endif
     #endif
 #endif
 
@@ -934,6 +936,10 @@ static void primary_create(SpiceChannel *channel,
     d->data_origin = d->data = imgdata;
 
     update_monitor_area(display);
+
+    if (d->buffer_resize_callback) {
+        d->buffer_resize_callback(4, width, height);
+    }
 }
 
 static void primary_destroy(SpiceChannel *channel, gpointer data)
@@ -949,6 +955,10 @@ static void primary_destroy(SpiceChannel *channel, gpointer data)
     d->shmid  = 0;
     d->data   = NULL;
     d->data_origin = NULL;
+
+    if (d->buffer_resize_callback) {
+        d->buffer_resize_callback(0, 0, 0);
+    }
 }
 
 typedef unsigned int Color32;
@@ -1033,6 +1043,7 @@ gboolean copy_display_to_glue()
 static void invalidate(SpiceChannel *channel,
                        gint x, gint y, gint w, gint h, gpointer data)
 {
+    // SPICE_DEBUG("invalidate %d, %d, %d, %d", x, y, w, h);
     if (global_display() == NULL) return;
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(global_display());
 
@@ -1067,6 +1078,12 @@ static void invalidate(SpiceChannel *channel,
         g_timeout_add(30, (GSourceFunc) copy_display_to_glue, NULL);
         d->copy_scheduled = 1;
     }
+    if (d->buffer_update_callback) {
+        d->buffer_update_callback(d->invalidate_x,
+                                  d->invalidate_y,
+                                  d->invalidate_w,
+                                  d->invalidate_h);
+    }
 }
 
 static void update_ready(SpiceDisplay *display)
@@ -1084,6 +1101,14 @@ static void update_ready(SpiceDisplay *display)
 
     d->ready = ready;
     //g_object_notify(G_OBJECT(display), "ready");
+
+    if (d->buffer_update_callback) {
+        d->buffer_update_callback(d->invalidate_x,
+                                  d->invalidate_y,
+                                  d->invalidate_w,
+                                  d->invalidate_h);
+    }
+
 }
 
 static void mark(SpiceDisplay *display, gint mark)
@@ -1350,7 +1375,7 @@ static void disconnect_cursor(SpiceDisplay *display)
 
 static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
 {
-    //SPICE_DEBUG(" ***** spice-widget -> channel_new %p ", channel);
+    SPICE_DEBUG("spice-widget -> channel_new %p ", channel);
 
     SpiceDisplay *display = data;
     SpiceDisplayPrivate *d = SPICE_DISPLAY_GET_PRIVATE(display);
@@ -1359,7 +1384,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
     g_object_get(channel, "channel-id", &id, NULL);
 
     if (SPICE_IS_MAIN_CHANNEL(channel)) {
-        //SPICE_DEBUG(" channel_new: MAIN_CHANEL del display %d ", get_display_id(display));
+        SPICE_DEBUG("channel_new: SPICE_IS_MAIN_CHANNEL, id %d ", get_display_id(display));
         d->main = SPICE_MAIN_CHANNEL(channel);
         spice_g_signal_connect_object(channel, "main-mouse-update",
                       G_CALLBACK(update_mouse_mode), display, 0);
@@ -1388,7 +1413,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
     }
 
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-        //SPICE_DEBUG(" ***** channel_new: ES DISPLAY_CHANEL del display %d ", get_display_id(display));
+        SPICE_DEBUG("channel_new SPICE_IS_DISPLAY_CHANNEL, id %d ", get_display_id(display));
         SpiceDisplayPrimary primary;
         if (id != d->channel_id)
             return;
@@ -1713,4 +1738,16 @@ int32_t spice_display_key_event(SpiceDisplay *display, int16_t isDown, int32_t h
         send_key(display, scancode, 0);
     }
     return 0;
+}
+
+void set_buffer_resize_callback(SpiceDisplay *display, void (*buffer_resize_callback)(int, int, int)) {
+    SpiceDisplayPrivate *d;
+    d = SPICE_DISPLAY_GET_PRIVATE(display);
+    d->buffer_resize_callback = buffer_resize_callback;
+}
+
+void set_buffer_update_callback(SpiceDisplay *display, void (*buffer_update_callback)(int, int, int, int)) {
+    SpiceDisplayPrivate *d;
+    d = SPICE_DISPLAY_GET_PRIVATE(display);
+    d->buffer_update_callback = buffer_update_callback;
 }

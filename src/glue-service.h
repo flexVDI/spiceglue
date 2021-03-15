@@ -18,13 +18,23 @@
 
 #include "glue-spice-widget.h"
 
-SpiceDisplay* global_display();
+SpiceDisplay* global_display(void);
 int16_t SpiceGlibGlue_Connect(char* host,
 			      char* port, char* tls_port, char* ws_port,
 			      char* password,
 			      char* ca_file, char* cert_subj,
 			      int32_t enable_sound);
 void SpiceGlibGlue_Disconnect(void);
-void SpiceGlibGlue_InitializeLoggingCallback(int32_t verbosityLevel, void (*cl_log_callback)(int8_t *));
 void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel);
 void SpiceGlibGlue_MainLoop(void);
+void SpiceGlibGlueSetDisplayBuffer(uint32_t *display_buffer,
+				   int32_t width, int32_t height);
+int16_t SpiceGlibGlueIsDisplayBufferUpdated(int32_t width, int32_t height);
+int16_t SpiceGlibGlueLockDisplayBuffer(int32_t *width, int32_t *height);
+void SpiceGlibGlueUnlockDisplayBuffer(void);
+int16_t SpiceGlibGlueGetCursorPosition(int32_t* x, int32_t* y);
+int32_t SpiceGlibGlue_SpiceKeyEvent(int16_t isDown, int32_t hardware_keycode);
+void SpiceGlibGlue_SetLogCallback(void (*log_callback)(int8_t *));
+void SpiceGlibGlue_SetBufferResizeCallback(void (*buffer_resize_callback)(int, int, int));
+void SpiceGlibGlue_SetBufferUpdateCallback(void (*buffer_update_callback)(int, int, int, int));
+void SpiceGlibGlue_SetBufferDisconnectCallback(void (*disconnect_callback)(void));
