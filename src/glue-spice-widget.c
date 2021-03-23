@@ -1472,9 +1472,9 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
         return;
     }
 #endif
-    if (SPICE_IS_SMARTCARD_CHANNEL(channel)) {
+    //if (SPICE_IS_SMARTCARD_CHANNEL(channel)) {
         //SPICE_DEBUG(" ***** channel_new: ES SMARTCARD_CHANEL del display %d ", get_display_id(display));
-    }
+    //}
     //SPICE_DEBUG(" ***** END -spice-widget -> channel_new ");
     return;
 }
