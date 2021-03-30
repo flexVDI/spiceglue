@@ -15,6 +15,10 @@ PKG_CHECK_MODULES([SPICEGLIB], [spice-client-glib-2.0])
 AC_SUBST(SPICEGLIB_CFLAGS)
 AC_SUBST(SPICEGLIB_LIBS)
 
+PKG_CHECK_MODULES([LIBXML2], [libxml-2.0])
+AC_SUBST(LIBXML2_CFLAGS)
+AC_SUBST(LIBXML2_LIBS)
+
 case "$host_os" in
      *mingw*|*cygwin*)
         os_win32=yes

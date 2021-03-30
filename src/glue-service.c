@@ -31,6 +31,7 @@
 
 #include "glue-spice-widget.h"
 #include "glue-connection.h"
+#include "virt-viewer-file.h"
 
 #include "glib.h"
 #if defined(PRINTING) || defined(SSO)
@@ -238,6 +239,28 @@ int16_t SpiceGlibGlue_Connect(char* host,
 #endif
     SPICE_DEBUG("SpiceClientConnect exit");
 
+    return result;
+}
+
+int16_t SpiceGlibGlue_ConnectWithVv(const gchar *vv_file_name, const gboolean sound)
+{
+    GError *error = NULL;
+    VirtViewerFile *vv_file = NULL;
+    int result = -1;
+
+    SPICE_DEBUG("SpiceGlibGlue_ConnectWithVv");
+    vv_file = virt_viewer_file_new(vv_file_name, &error);
+
+    if (!error) {
+        mainconn = spice_connection_new();
+        spice_session_setup_from_vv(vv_file, mainconn, sound);
+        spice_connection_connect(mainconn);
+        result = 0;
+    } else {
+        SPICE_DEBUG("Unable to parse console file: %s\n", error->message);
+    }
+    if (vv_file != NULL)
+        g_object_unref(vv_file);
     return result;
 }
 

@@ -25,6 +25,7 @@
 #endif
 #include <glib-object.h>
 #include "glue-spice-widget.h"
+#include "virt-viewer-file.h"
 
 #define SPICE_CONNECTION_TYPE (spice_connection_get_type())
 G_DECLARE_FINAL_TYPE(SpiceConnection, spice_connection, SPICE, CONNECTION, GObject)
@@ -37,6 +38,7 @@ void spice_connection_setup(SpiceConnection *conn, const char *host,
 			 const char *ca_file,
 			 const char *cert_subj,
              gboolean enable_sound);
+void spice_session_setup_from_vv(VirtViewerFile *file, SpiceConnection *session, gboolean enable_audio);
 
 SpiceConnection *spice_connection_new(void);
 void spice_connection_connect(SpiceConnection *conn);

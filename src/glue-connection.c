@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <spice-client.h>
 #include "glue-connection.h"
+#include "virt-viewer-file.h"
 
 struct _SpiceConnection {
     GObject          parent;
@@ -240,6 +241,104 @@ void spice_connection_setup(SpiceConnection *conn, const char *host,
         g_object_set(conn->session, "cert-subject", cert_subj, NULL);
     conn->enable_sound = enable_sound;
 }
+
+void spice_session_setup_from_vv(VirtViewerFile *file, SpiceConnection *conn, gboolean enable_audio)
+{
+    SPICE_DEBUG("spice_session_setup_from_vv");
+
+    g_return_if_fail(VIRT_VIEWER_IS_FILE(file));
+    g_return_if_fail(SPICE_IS_SESSION(conn->session));
+
+    if (virt_viewer_file_is_set(file, "host")) {
+        gchar *val = virt_viewer_file_get_host(file);
+        g_object_set(G_OBJECT(conn->session), "host", val, NULL);
+        g_free(val);
+    }
+
+    if (virt_viewer_file_is_set(file, "port")) {
+        gchar *val = g_strdup_printf("%d", virt_viewer_file_get_port(file));
+        g_object_set(G_OBJECT(conn->session), "port", val, NULL);
+        g_free(val);
+    }
+    if (virt_viewer_file_is_set(file, "tls-port")) {
+        gchar *val = g_strdup_printf("%d", virt_viewer_file_get_tls_port(file));
+        g_object_set(G_OBJECT(conn->session), "tls-port", val, NULL);
+        g_free(val);
+    }
+    if (virt_viewer_file_is_set(file, "password")) {
+        gchar *val = virt_viewer_file_get_password(file);
+        g_object_set(G_OBJECT(conn->session), "password", val, NULL);
+        g_free(val);
+    }
+
+    if (virt_viewer_file_is_set(file, "tls-ciphers")) {
+        gchar *val = virt_viewer_file_get_tls_ciphers(file);
+        g_object_set(G_OBJECT(conn->session), "ciphers", val, NULL);
+        g_free(val);
+    }
+
+    if (virt_viewer_file_is_set(file, "ca")) {
+        gchar *ca = virt_viewer_file_get_ca(file);
+        g_return_if_fail(ca != NULL);
+
+        GByteArray *ba = g_byte_array_new_take((guint8 *)ca, strlen(ca) + 1);
+        g_object_set(G_OBJECT(conn->session), "ca", ba, NULL);
+        g_byte_array_unref(ba);
+    }
+
+    if (virt_viewer_file_is_set(file, "host-subject")) {
+        gchar *val = virt_viewer_file_get_host_subject(file);
+        g_object_set(G_OBJECT(conn->session), "cert-subject", val, NULL);
+        g_free(val);
+    }
+
+    if (virt_viewer_file_is_set(file, "proxy")) {
+        gchar *val = virt_viewer_file_get_proxy(file);
+        g_object_set(G_OBJECT(conn->session), "proxy", val, NULL);
+        g_free(val);
+    }
+
+    if (virt_viewer_file_is_set(file, "enable-smartcard")) {
+        g_object_set(G_OBJECT(conn->session),
+                     "enable-smartcard", virt_viewer_file_get_enable_smartcard(file), NULL);
+    }
+
+    if (virt_viewer_file_is_set(file, "enable-usbredir")) {
+        g_object_set(G_OBJECT(conn->session),
+                     "enable-usbredir", virt_viewer_file_get_enable_usbredir(file), NULL);
+    }
+
+    if (virt_viewer_file_is_set(file, "color-depth")) {
+        g_object_set(G_OBJECT(conn->session),
+                     "color-depth", virt_viewer_file_get_color_depth(file), NULL);
+    }
+
+    if (virt_viewer_file_is_set(file, "disable-effects")) {
+        gchar **disabled = virt_viewer_file_get_disable_effects(file, NULL);
+        g_object_set(G_OBJECT(conn->session), "disable-effects", disabled, NULL);
+        g_strfreev(disabled);
+    }
+
+    if (virt_viewer_file_is_set(file, "enable-usb-autoshare")) {
+        //gboolean enabled = virt_viewer_file_get_enable_usb_autoshare(file);
+        //SpiceGtkSession *gtk = spice_gtk_session_get(conn->session);
+        //g_object_set(G_OBJECT(gtk), "auto-usbredir", enabled, NULL);
+    }
+
+    if (virt_viewer_file_is_set(file, "secure-channels")) {
+        gchar **channels = virt_viewer_file_get_secure_channels(file, NULL);
+        g_object_set(G_OBJECT(conn->session), "secure-channels", channels, NULL);
+        g_strfreev(channels);
+    }
+
+    if (virt_viewer_file_is_set(file, "disable-channels")) {
+        //DEBUG_LOG("FIXME: disable-channels is not supported atm");
+    }
+
+    g_object_set(conn->session, "enable-audio", enable_audio, NULL);
+    conn->enable_sound = enable_audio;
+}
+
 
 SpiceDisplay *spice_connection_get_display(SpiceConnection *conn)
 {

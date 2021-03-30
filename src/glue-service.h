@@ -17,6 +17,7 @@
  */
 
 #include "glue-spice-widget.h"
+#include "virt-viewer-file.h"
 
 SpiceDisplay* global_display(void);
 int16_t SpiceGlibGlue_Connect(char* host,
@@ -24,6 +25,7 @@ int16_t SpiceGlibGlue_Connect(char* host,
 			      char* password,
 			      char* ca_file, char* cert_subj,
 			      int32_t enable_sound);
+int16_t SpiceGlibGlue_ConnectWithVv (const gchar *vv_file_name, const gboolean sound);
 void SpiceGlibGlue_Disconnect(void);
 void SpiceGlibGlue_InitializeLogging(int32_t verbosityLevel);
 void SpiceGlibGlue_MainLoop(void);
